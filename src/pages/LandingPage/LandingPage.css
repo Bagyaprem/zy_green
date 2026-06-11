@@ -1,0 +1,5 @@
+/* LandingPage global overrides */
+.scrollContainer > section {
+  position: relative;
+  z-index: 2;
+}

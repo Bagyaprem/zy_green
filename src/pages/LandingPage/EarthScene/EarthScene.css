@@ -1,0 +1,4 @@
+/* EarthScene global overrides */
+.orbitalLabel {
+  transform: scale(0.9);
+}

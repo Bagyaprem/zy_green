@@ -1,0 +1,95 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.card {
+  @include glass-panel;
+  padding: $space-5;
+  border-radius: $radius-xl;
+  display: flex;
+  flex-direction: column;
+  gap: $space-4;
+  position: relative;
+  overflow: hidden;
+  transition: all $transition-smooth;
+
+  &:hover {
+    border-color: var(--status-color);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+    background: #ffffff;
+    
+    .iconWrapper {
+      background: var(--status-color);
+      color: #ffffff;
+    }
+  }
+}
+
+.header {
+  @include flex-between;
+}
+
+.title {
+  font-size: $fs-sm;
+  color: $text-dim;
+  font-weight: $fw-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.iconWrapper {
+  width: 36px;
+  height: 36px;
+  border-radius: $radius-lg;
+  background: rgba(15, 23, 42, 0.03);
+  color: $text-dark;
+  @include flex-center;
+  transition: all $transition-smooth;
+}
+
+.body {
+  display: flex;
+  align-items: baseline;
+}
+
+.value {
+  font-family: $font-display;
+  font-size: $fs-3xl;
+  font-weight: $fw-bold;
+  color: $text-dark;
+}
+
+.unit {
+  font-size: $fs-sm;
+  color: $text-dim;
+  margin-left: 2px;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  font-size: $fs-xs;
+  color: $text-muted;
+  border-top: 1px solid #f1f5f9;
+  padding-top: $space-3;
+  margin-top: $space-1;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: $radius-full;
+  background: var(--status-color);
+  box-shadow: 0 0 6px var(--status-color);
+}
+
+.statusText {
+  font-weight: $fw-bold;
+  color: var(--status-color);
+}
+
+.desc {
+  color: $text-dim;
+  @include truncate;
+  max-width: 140px;
+}

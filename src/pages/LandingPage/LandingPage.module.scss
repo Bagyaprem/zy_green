@@ -1,0 +1,98 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.landingPage {
+  background: linear-gradient(180deg, #07160a 0%, #04110a 60%);
+  color: #e6f9f0;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.stickyStage {
+  position: sticky;
+  top: 64px; // Account for navbar height
+  height: calc(100vh - 64px);
+  width: 100%;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+  background-image: linear-gradient(180deg, rgba(6,95,30,0.45), rgba(2,40,18,0.9)), url('/bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.scrollContainer {
+  position: relative;
+  width: 100%;
+  height: 300vh;
+  background-image: 
+    radial-gradient(900px 450px at 18% 30%, rgba(34,197,94,0.07) 0%, transparent 30%),
+    radial-gradient(700px 350px at 82% 70%, rgba(6,182,212,0.03) 0%, transparent 30%);
+}
+
+.stickyStage {
+  position: sticky;
+  top: 64px; // Account for navbar height
+  height: calc(100vh - 64px);
+  width: 100%;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sectionsOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 300vh;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Helper to position content panels near the globe (slightly right of center) */
+.contentPanel {
+  position: absolute;
+  top: 50%;
+  left: 35%;
+  transform: translate(-50%, -50%);
+  width: 42%;
+  pointer-events: auto;
+}
+
+// Make sure the canvas and internal Drei HTML elements allow mouse rotation
+.stickyStage :global(.canvas-container) {
+  pointer-events: auto;
+}
+
+.globeSlogan {
+  position: absolute;
+  top: 55%;
+  right: 8%;
+  transform: translate(10%, -50%);
+  max-width: 320px;
+  padding: $space-4 $space-5;
+  border-radius: $radius-2xl;
+  background: rgba(14, 55, 25, 0.46);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  color: $primary;
+  font-family: $font-display;
+  font-size: clamp(1rem, 1.55vw, 1.25rem);
+  font-weight: $fw-black;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.35;
+  text-align: right;
+  opacity: 0;
+  transition: opacity $transition-smooth, transform $transition-smooth;
+  pointer-events: none;
+  backdrop-filter: blur(12px);
+}
+
+.visible {
+  opacity: 1;
+  transform: translate(0, -50%);
+}

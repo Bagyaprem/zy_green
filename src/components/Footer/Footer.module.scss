@@ -1,0 +1,140 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.minimalFooter {
+  width: 100%;
+  background: rgba(244, 251, 247, 0.5); // Soft green tint
+  border-top: 1px solid #f1f5f9;
+  padding: $space-6 0;
+  display: flex;
+  justify-content: center;
+}
+
+.minimalInner {
+  max-width: $bp-xl;
+  width: 100%;
+  padding: 0 $space-6;
+  @include flex-between;
+  font-size: $fs-sm;
+  color: $text-muted;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: $space-1;
+  font-family: $font-display;
+  font-weight: $fw-bold;
+  color: $text-dark;
+}
+
+.brandIcon {
+  font-size: $fs-base;
+}
+
+.copy {
+  font-size: 11px;
+  color: $text-dim;
+}
+
+/* Floating Dock Navigation */
+.floatingDock {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  pointer-events: auto;
+}
+
+.dockNav {
+  background: linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)) padding-box,
+              linear-gradient(90deg, #84cc16, #22c55e, #10b981) border-box;
+  border: 2px solid transparent;
+  padding: $space-2.5 $space-5;
+  border-radius: $radius-full;
+  display: flex;
+  align-items: center;
+  gap: $space-4;
+  box-shadow: 0 16px 40px rgba(34, 197, 94, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.dockLink {
+  color: $text-muted;
+  transition: all $transition-smooth;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $space-1;
+  
+  &:hover {
+    color: $primary;
+    transform: translateY(-3px);
+    
+    .tooltip {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+  
+  &.active {
+    color: $primary;
+    filter: drop-shadow(0 0 4px rgba($primary, 0.4));
+    
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 5px;
+      height: 5px;
+      border-radius: $radius-full;
+      background: $primary;
+      box-shadow: 0 0 8px $primary;
+    }
+  }
+}
+
+.iconWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon {
+  stroke-width: 2.2px;
+}
+
+.tooltip {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  background: linear-gradient(135deg, $secondary, $primary);
+  color: #ffffff;
+  padding: $space-1 $space-3;
+  border-radius: $radius-md;
+  font-size: 10px;
+  font-weight: $fw-bold;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: all $transition-smooth;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 4px;
+    border-style: solid;
+    border-color: $primary transparent transparent transparent;
+  }
+}

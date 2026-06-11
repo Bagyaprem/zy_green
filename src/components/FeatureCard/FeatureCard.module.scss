@@ -1,0 +1,55 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.card {
+  @include glass-panel-light;
+  padding: $space-6;
+  border-radius: $radius-xl;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: $space-3;
+  transition: all $transition-smooth;
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    transform: translateY(-5px);
+    border-color: rgba($primary, 0.4);
+    box-shadow: 0 12px 40px rgba($primary, 0.08);
+    background: rgba(255, 255, 255, 0.95);
+    
+    .iconWrapper {
+      background: rgba($primary, 0.15);
+      color: $primary;
+      transform: scale(1.1);
+    }
+  }
+}
+
+.iconWrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: $radius-lg;
+  background: rgba(15, 23, 42, 0.04);
+  color: $text-dark;
+  @include flex-center;
+  transition: all $transition-smooth;
+}
+
+.icon {
+  stroke-width: 2px;
+}
+
+.title {
+  font-family: $font-display;
+  font-size: $fs-lg;
+  font-weight: $fw-bold;
+  color: $text-dark;
+}
+
+.description {
+  font-size: $fs-base;
+  color: $text-dark-muted;
+  line-height: 1.5;
+}

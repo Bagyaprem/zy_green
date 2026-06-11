@@ -1,0 +1,80 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.section {
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  pointer-events: none;
+}
+
+.container {
+  max-width: 650px;
+  width: 100%;
+  text-align: center;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $space-6;
+  padding: 0 $space-4;
+  pointer-events: auto;
+}
+
+.healChip {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding: $space-2 $space-4;
+  border-radius: $radius-full;
+  background: rgba(240, 253, 244, 0.95);
+  border: 1px solid rgba($primary, 0.2);
+  color: $primary;
+  font-size: $fs-sm;
+  font-weight: $fw-semibold;
+  box-shadow: $shadow-sm;
+}
+
+.healIcon {
+  flex-shrink: 0;
+  animation: pulse-slow 2s infinite;
+}
+
+.title {
+  font-family: $font-display;
+  font-size: $fs-4xl;
+  font-weight: $fw-black;
+  color: $text-dark;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+
+  @include responsive(sm) {
+    font-size: $fs-5xl;
+  }
+}
+
+.highlight {
+  color: $primary;
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: rgba($primary, 0.2);
+    border-radius: $radius-full;
+  }
+}
+
+.description {
+  font-size: $fs-md;
+  color: $text-dark-muted;
+  line-height: 1.6;
+}

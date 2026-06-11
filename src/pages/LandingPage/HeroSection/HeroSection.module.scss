@@ -1,0 +1,105 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.section {
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  display: block;
+  background: transparent;
+  pointer-events: none; // Let mouse events pass through to 3D canvas
+}
+
+.container {
+  position: absolute;
+  top: 50%;
+  left: 35%;
+  transform: translate(-50%, -50%);
+  max-width: 680px;
+  width: 100%;
+  text-align: left;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: $space-6;
+  padding: 0 $space-4;
+  pointer-events: auto; // Let controls on text work
+}
+
+.alertChip {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding: $space-2 $space-4;
+  border-radius: $radius-full;
+  background: rgba(254, 242, 242, 0.95);
+  border: 1px solid rgba($red, 0.2);
+  color: $red;
+  font-size: $fs-sm;
+  font-weight: $fw-semibold;
+  box-shadow: $shadow-sm;
+}
+
+.alertIcon {
+  flex-shrink: 0;
+  animation: pulse-slow 2s infinite;
+}
+
+.title {
+  font-family: $font-display;
+  font-size: $fs-4xl;
+  font-weight: $fw-black;
+  color: $text-dark;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+
+  @include responsive(sm) {
+    font-size: $fs-5xl;
+  }
+}
+
+.highlight {
+  color: $red;
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: rgba($red, 0.2);
+    border-radius: $radius-full;
+  }
+}
+
+.description {
+  font-size: $fs-md;
+  color: $text-dark-muted;
+  line-height: 1.6;
+}
+
+.scrollIndicator {
+  position: absolute;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $space-2;
+  font-size: $fs-xs;
+  color: $primary;
+  font-weight: $fw-bold;
+  pointer-events: auto;
+}
+
+.bounceLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
+.bounceArrow {
+  animation: float 1s infinite alternate;
+}
