@@ -90,9 +90,25 @@
   transition: opacity $transition-smooth, transform $transition-smooth;
   pointer-events: none;
   backdrop-filter: blur(12px);
+
+  @include responsive-max(md) {
+    right: auto;
+    left: 50%;
+    top: auto;
+    bottom: 18%;
+    transform: translate(-50%, 0);
+    max-width: 85vw;
+    text-align: center;
+    font-size: clamp(0.75rem, 3vw, 1rem);
+    padding: $space-3 $space-4;
+  }
 }
 
 .visible {
   opacity: 1;
   transform: translate(0, -50%);
+
+  @include responsive-max(md) {
+    transform: translate(-50%, 0);
+  }
 }

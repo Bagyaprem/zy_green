@@ -1,12 +1,46 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
+import { supabase } from '../../services/supabase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Leaf, ShieldAlert, Award, FileText, ArrowRight } from 'lucide-react';
+import { Leaf, ShieldAlert, Award } from 'lucide-react';
 import styles from './AnalyticsPage.module.scss';
 import './AnalyticsPage.css';
 
 export const AnalyticsPage = () => {
   const { readings } = useAppStore();
+  const [dailyData, setDailyData] = useState([]);
+
+  useEffect(() => {
+    const fetchWeekly = async () => {
+      const since = new Date(Date.now() - 7 * 24 * 3_600_000).toISOString();
+      const { data, error } = await supabase
+        .from('air_quality')
+        .select('co2, recorded_at')
+        .gte('recorded_at', since)
+        .order('recorded_at', { ascending: true })
+        .limit(10000);
+
+      if (error || !data) return;
+
+      // Group by calendar day
+      const byDay = {};
+      data.forEach(row => {
+        if (!row.recorded_at) return;
+        const d   = new Date(row.recorded_at);
+        const key = d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' });
+        if (!byDay[key]) byDay[key] = { sum: 0, count: 0 };
+        if (!isNaN(row.co2)) { byDay[key].sum += row.co2; byDay[key].count++; }
+      });
+
+      setDailyData(
+        Object.entries(byDay).map(([name, { sum, count }]) => ({
+          name,
+          CO2: count > 0 ? Math.round(sum / count) : 0,
+        }))
+      );
+    };
+    fetchWeekly();
+  }, []);
 
   // Calculate statistics
   const totalReadings = readings.length;
@@ -26,17 +60,6 @@ export const AnalyticsPage = () => {
   const maxPm25 = totalReadings > 0
     ? Math.max(...readings.map(item => Number(item.pm25)))
     : 0;
-
-  // Generate 7-day average simulator dataset for Recharts
-  const dailyData = [
-    { name: 'Mon', CO2: Math.max(300, Math.round(avgCo2 * 0.9)) },
-    { name: 'Tue', CO2: Math.max(300, Math.round(avgCo2 * 0.98)) },
-    { name: 'Wed', CO2: Math.max(300, Math.round(avgCo2 * 1.1)) },
-    { name: 'Thu', CO2: Math.max(300, Math.round(avgCo2 * 0.95)) },
-    { name: 'Fri', CO2: Math.max(300, Math.round(avgCo2 * 1.02)) },
-    { name: 'Sat', CO2: Math.max(300, Math.round(avgCo2 * 0.85)) },
-    { name: 'Sun', CO2: avgCo2 },
-  ];
 
   // Recommendations generator
   const getInsights = () => {
@@ -119,7 +142,7 @@ export const AnalyticsPage = () => {
         <div className={styles.analyticsBody}>
           <div className={styles.chartCol}>
             <div className={styles.chartCard}>
-              <h3 className={styles.cardTitle}>Daily Average Indices</h3>
+              <h3 className={styles.cardTitle}>Daily Average CO₂ (Last 7 Days)</h3>
               <div className={styles.chartWrapper}>
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={dailyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>

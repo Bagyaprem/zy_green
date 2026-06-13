@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, Suspense } from 'react';
+import React, { useRef, useMemo, Suspense, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, useTexture, Html } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
@@ -383,7 +383,7 @@ const RevolvingBrandText = ({ scrollProgress }) => {
   );
 };
 
-export const EarthSceneInner = ({ scrollProgress }) => {
+export const EarthSceneInner = ({ scrollProgress, isMobile = false }) => {
   const ambientIntensity = 0.8 + scrollProgress * 1.6;
   const directionalIntensity = 1.4 + scrollProgress * 2.0;
   const pointIntensity = 0.8 + scrollProgress * 1.2;
@@ -443,6 +443,7 @@ export const EarthSceneInner = ({ scrollProgress }) => {
         enableZoom={false}
         autoRotate={false}
         enablePan={false}
+        enableRotate={!isMobile}
         minPolarAngle={Math.PI / 3}
         maxPolarAngle={Math.PI / 1.5}
       />
@@ -455,10 +456,20 @@ export const EarthSceneInner = ({ scrollProgress }) => {
 };
 
 export const EarthCanvas = ({ scrollProgress }) => {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' && window.innerWidth <= 768
+  );
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
   return (
     <div className={styles.canvasContainer}>
       <Canvas camera={{ position: [0, 0, 6.2], fov: 45 }} dpr={[1, 2]} shadows>
-        <EarthSceneInner scrollProgress={scrollProgress} />
+        <EarthSceneInner scrollProgress={scrollProgress} isMobile={isMobile} />
       </Canvas>
     </div>
   );

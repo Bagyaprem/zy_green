@@ -23,7 +23,14 @@
   flex-direction: column;
   gap: $space-6;
   padding: 0 $space-4;
-  pointer-events: auto; // Let controls on text work
+  pointer-events: auto;
+
+  @include responsive-max(md) {
+    left: 50%;
+    top: 40%;
+    max-width: 90vw;
+    text-align: center;
+  }
 }
 
 .alertChip {
@@ -93,6 +100,10 @@
   color: $primary;
   font-weight: $fw-bold;
   pointer-events: auto;
+
+  @include responsive-max(md) {
+    bottom: 24px;
+  }
 }
 
 .bounceLabel {

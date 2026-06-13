@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 import { supabase } from '../../services/supabase';
+import { useAppStore } from '../../store/useAppStore';
 import './LiveCharts.css';
 
 /* ─── config ──────────────────────────────────────────────── */
@@ -18,16 +19,19 @@ const RANGES = {
   '1D': {
     label: '1 Day',
     hours: 24,
-    bucketMs: 60 * 60 * 1000,           // 1-hour gap → 24 pts
-    limit: 5000,
-    fmtX:   (d) => `${String(d.getHours()).padStart(2,'0')}:00`,
-    fmtTip: (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    bucketMs: 60 * 60 * 1000,
+    limit: 10000,
+    fmtX:   (d) => `${String(d.getHours()).padStart(2, '0')}:00`,
+    fmtTip: (d) => {
+      const h = d.getHours();
+      return `${String(h).padStart(2,'0')}:00 – ${String(h + 1).padStart(2,'0')}:00`;
+    },
     xLabel: 'Time (hours)',
   },
   '1W': {
     label: '1 Week',
     hours: 168,
-    bucketMs: 24 * 60 * 60 * 1000,      // 1-day gap → 7 pts
+    bucketMs: 24 * 60 * 60 * 1000,
     limit: 5000,
     fmtX:   (d) => d.toLocaleDateString([], { weekday: 'short', day: 'numeric' }),
     fmtTip: (d) => d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }),
@@ -36,7 +40,7 @@ const RANGES = {
   '1M': {
     label: '1 Month',
     hours: 720,
-    bucketMs: 5 * 24 * 60 * 60 * 1000,  // 5-day gap → ~6 pts
+    bucketMs: 5 * 24 * 60 * 60 * 1000,
     limit: 5000,
     fmtX:   (d) => d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
     fmtTip: (d) => d.toLocaleDateString([], { month: 'long', day: 'numeric' }),
@@ -45,23 +49,49 @@ const RANGES = {
 };
 
 /* ─── helpers ─────────────────────────────────────────────── */
+
+// Builds a full 24-slot timeline for today (00:00 – 23:00).
+// Every hour slot is present; value is null if no readings fell in that hour.
+function buildDayTimeline(rows, metricKey) {
+  const now      = new Date();
+  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayEnd   = new Date(dayStart.getTime() + 86_400_000);
+
+  const buckets = Array.from({ length: 24 }, () => ({ sum: 0, count: 0 }));
+
+  rows.forEach((row) => {
+    const ts = row.recorded_at ? new Date(row.recorded_at) : null;
+    if (!ts || ts < dayStart || ts >= dayEnd) return;
+    const h   = ts.getHours();
+    const val = metricKey === 'pm25' ? Number(row.pm25) : Number(row[metricKey]);
+    if (!isNaN(val)) { buckets[h].sum += val; buckets[h].count++; }
+  });
+
+  return buckets.map(({ sum, count }, h) => ({
+    time:    `${String(h).padStart(2, '0')}:00`,
+    tipTime: `${String(h).padStart(2, '0')}:00 – ${String(h + 1).padStart(2, '0')}:00`,
+    value:   count > 0 ? Math.round((sum / count) * 10) / 10 : null,
+  }));
+}
+
+// Generic bucket average for 1W and 1M ranges.
 function bucketAverage(rows, rcfg, metricKey) {
   if (!rows.length) return [];
   const map = {};
   rows.forEach((row) => {
-    const ts  = row.created_at ? new Date(row.created_at).getTime() : row.id * 10_000;
+    const ts  = row.recorded_at ? new Date(row.recorded_at).getTime() : null;
+    if (!ts) return;
     const key = Math.floor(ts / rcfg.bucketMs) * rcfg.bucketMs;
     if (!map[key]) map[key] = { sum: 0, count: 0 };
     const val = metricKey === 'pm25' ? Number(row.pm25) : Number(row[metricKey]);
-    if (!isNaN(val)) { map[key].sum += val; map[key].count += 1; }
+    if (!isNaN(val)) { map[key].sum += val; map[key].count++; }
   });
   return Object.entries(map)
     .sort(([a], [b]) => Number(a) - Number(b))
     .map(([bucket, { sum, count }]) => ({
-      bucketDate: new Date(Number(bucket)),
-      time:       rcfg.fmtX(new Date(Number(bucket))),
-      tipTime:    rcfg.fmtTip(new Date(Number(bucket))),
-      value:      Math.round((sum / count) * 10) / 10,
+      time:    rcfg.fmtX(new Date(Number(bucket))),
+      tipTime: rcfg.fmtTip(new Date(Number(bucket))),
+      value:   count > 0 ? Math.round((sum / count) * 10) / 10 : null,
     }));
 }
 
@@ -69,54 +99,68 @@ function bucketAverage(rows, rcfg, metricKey) {
 export const LiveCharts = () => {
   const [metric,  setMetric]  = useState('co2');
   const [range,   setRange]   = useState('1D');
-  const [data,    setData]    = useState([]);
+  const [rows,    setRows]    = useState([]);
   const [loading, setLoading] = useState(false);
-  const [noTs,    setNoTs]    = useState(false);
 
-  const fetchData = useCallback(async (r, m) => {
+  // Real-time reading from the store's Supabase subscription
+  const liveReading  = useAppStore(state => state.liveReading);
+  const prevLiveRef  = useRef(null);
+
+  /* ── fetch historical data from Supabase ── */
+  const fetchData = useCallback(async (r) => {
     setLoading(true);
     const rcfg  = RANGES[r];
     const since = new Date(Date.now() - rcfg.hours * 3_600_000).toISOString();
 
-    let { data: rows, error } = await supabase
+    const { data, error } = await supabase
       .from('air_quality')
-      .select('id, co2, pm25, temperature, humidity, created_at')
-      .gte('created_at', since)
-      .order('created_at', { ascending: true })
+      .select('id, co2, pm25, pm1, pm4, pm10, temperature, humidity, recorded_at')
+      .gte('recorded_at', since)
+      .order('recorded_at', { ascending: true })
       .limit(rcfg.limit);
 
-    if (error && error.message.includes('created_at')) {
-      setNoTs(true);
-      ({ data: rows, error } = await supabase
-        .from('air_quality')
-        .select('id, co2, pm25, temperature, humidity')
-        .order('id', { ascending: false })
-        .limit(rcfg.limit));
-      if (!error) rows = [...(rows || [])].reverse();
-    } else {
-      setNoTs(false);
-    }
-
-    if (!error && rows) setData(bucketAverage(rows, rcfg, m));
+    if (!error && data) setRows(data);
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchData(range, metric); }, [range, metric, fetchData]);
+  useEffect(() => { fetchData(range); }, [range, fetchData]);
 
+  /* ── real-time: append new reading when store updates (1D only) ── */
   useEffect(() => {
-    if (range !== '1D') return;
-    const id = setInterval(() => fetchData('1D', metric), 60_000);
-    return () => clearInterval(id);
-  }, [range, metric, fetchData]);
+    if (!liveReading || range !== '1D') return;
+    if (prevLiveRef.current?.id === liveReading.id) return;
+    prevLiveRef.current = liveReading;
+    setRows(prev => {
+      if (prev.some(r => r.id === liveReading.id)) return prev;
+      return [...prev, {
+        ...liveReading,
+        recorded_at: liveReading.recorded_at || new Date().toISOString(),
+      }];
+    });
+  }, [liveReading, range]);
+
+  /* ── compute chart data ── */
+  const data = useMemo(() => {
+    if (range === '1D') return buildDayTimeline(rows, metric);
+    return bucketAverage(rows, RANGES[range], metric);
+  }, [rows, range, metric]);
 
   const mcfg = METRICS[metric];
   const rcfg = RANGES[range];
-  const last = data.length ? data[data.length - 1].value : null;
 
-  /* tooltip */
+  // Latest non-null value for the header display
+  const last = useMemo(() => {
+    for (let i = data.length - 1; i >= 0; i--) {
+      if (data[i].value !== null) return data[i].value;
+    }
+    return null;
+  }, [data]);
+
+  /* ── tooltip ── */
   const Tip = ({ active, payload }) => {
     if (!active || !payload?.length) return null;
     const pt = payload[0].payload;
+    if (pt.value === null) return null;
     return (
       <div style={{
         background: '#fff',
@@ -135,7 +179,7 @@ export const LiveCharts = () => {
     );
   };
 
-  /* ─── range / metric pill buttons ─── */
+  /* ─── buttons ─── */
   const RangeBtn = ({ k }) => (
     <button
       onClick={() => setRange(k)}
@@ -183,6 +227,7 @@ export const LiveCharts = () => {
       boxShadow: '0 2px 16px rgba(0,0,0,0.06)',
       padding: '24px 24px 16px',
       fontFamily: 'inherit',
+      width: '100%',
     }}>
 
       {/* ── header row ── */}
@@ -212,27 +257,16 @@ export const LiveCharts = () => {
         </div>
       </div>
 
-      {noTs && (
-        <p style={{ margin: '0 0 12px', fontSize: 11, color: '#f97316', background: '#fff7ed', padding: '6px 10px', borderRadius: 6, border: '1px solid #fed7aa' }}>
-          ⚠ Run <code style={{ background: '#fef3c7', padding: '1px 4px', borderRadius: 3 }}>ALTER TABLE air_quality ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();</code> in Supabase.
-        </p>
-      )}
-
       {/* ── chart area ── */}
       <div style={{ width: '100%', height: 320 }}>
         {loading ? (
           <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}>
             Loading…
           </div>
-        ) : data.length === 0 ? (
-          <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}>
-            No data for this range
-          </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 10, right: 16, left: 0, bottom: 20 }}>
 
-              {/* fine grid like graph paper */}
               <CartesianGrid
                 stroke="#e2e8f0"
                 strokeDasharray="0"
@@ -241,22 +275,23 @@ export const LiveCharts = () => {
                 horizontal={true}
               />
 
-              {/* bottom X axis — bold black line */}
               <XAxis
                 dataKey="time"
-                tick={{ fill: '#475569', fontSize: 11, fontWeight: 500 }}
+                tick={{ fill: '#475569', fontSize: 10, fontWeight: 500 }}
                 axisLine={{ stroke: '#1e293b', strokeWidth: 2 }}
                 tickLine={{ stroke: '#1e293b', strokeWidth: 1.5 }}
-                interval="preserveStartEnd"
-                label={{
+                interval={range === '1D' ? 1 : 'preserveStartEnd'}
+                angle={range === '1D' ? -45 : 0}
+                textAnchor={range === '1D' ? 'end' : 'middle'}
+                height={range === '1D' ? 48 : 36}
+                label={range !== '1D' ? {
                   value: rcfg.xLabel,
                   position: 'insideBottom',
                   offset: -12,
                   style: { fill: '#1e293b', fontSize: 12, fontWeight: 700 },
-                }}
+                } : undefined}
               />
 
-              {/* left Y axis — bold black line */}
               <YAxis
                 tick={{ fill: '#475569', fontSize: 11 }}
                 axisLine={{ stroke: '#1e293b', strokeWidth: 2 }}
@@ -292,17 +327,15 @@ export const LiveCharts = () => {
                 />
               )}
 
-              {/* the smooth S-curve line */}
               <Line
-                type="natural"
+                type="monotone"
                 dataKey="value"
                 stroke="#2196f3"
-                strokeWidth={4}
-                dot={false}
+                strokeWidth={3}
+                dot={{ r: 3, fill: '#2196f3', strokeWidth: 0 }}
                 activeDot={{ r: 6, fill: '#2196f3', stroke: '#fff', strokeWidth: 2 }}
-                isAnimationActive={true}
-                animationDuration={800}
-                animationEasing="ease-in-out"
+                connectNulls={false}
+                isAnimationActive={false}
               />
 
             </LineChart>
@@ -313,10 +346,10 @@ export const LiveCharts = () => {
       {/* ── footer ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 10, color: '#cbd5e1' }}>
         <span>
-          {range === '1D' ? '1-hour intervals' : range === '1W' ? 'Daily averages' : '5-day averages'}
-          {' · '}{data.length} points
+          {range === '1D' ? '24-hour view · hourly averages' : range === '1W' ? 'Daily averages' : '5-day averages'}
+          {' · '}{data.filter(d => d.value !== null).length} active points
         </span>
-        <span>{range === '1D' ? 'Auto-refresh: 60s' : `Past ${rcfg.hours}h`}</span>
+        <span>{range === '1D' ? '● Live — updates on new reading' : `Past ${rcfg.hours}h`}</span>
       </div>
     </div>
   );
