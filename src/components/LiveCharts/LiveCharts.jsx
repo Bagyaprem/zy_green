@@ -15,71 +15,85 @@ const METRICS = {
   humidity:    { label: 'Humidity',    color: '#2196f3', unit: '%',     threshold: null },
 };
 
+const IST_TZ = 'Asia/Kolkata';
+
+// Limits are set at 1000 — Supabase default row cap; asking for more silently returns 1000 anyway.
+// Fetching DESC (newest-first) then reversing ensures we ALWAYS get the most recent readings,
+// not the oldest ones (which ascending + cap would give).
 const RANGES = {
   '1D': {
     label: '1 Day',
     hours: 24,
+    limit: 1000,
     bucketMs: 60 * 60 * 1000,
-    limit: 10000,
-    fmtX:   (d) => `${String(d.getHours()).padStart(2, '0')}:00`,
-    fmtTip: (d) => {
-      const h = d.getHours();
-      return `${String(h).padStart(2,'0')}:00 – ${String(h + 1).padStart(2,'0')}:00`;
-    },
-    xLabel: 'Time (hours)',
+    fmtX:   (d) => d.toLocaleTimeString('en-IN', { hour: '2-digit', hour12: false, timeZone: IST_TZ }),
+    fmtTip: (d) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: IST_TZ }),
+    xLabel: 'Time IST',
   },
   '1W': {
     label: '1 Week',
     hours: 168,
+    limit: 1000,
     bucketMs: 24 * 60 * 60 * 1000,
-    limit: 5000,
-    fmtX:   (d) => d.toLocaleDateString([], { weekday: 'short', day: 'numeric' }),
-    fmtTip: (d) => d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }),
-    xLabel: 'Day',
+    fmtX:   (d) => d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', timeZone: IST_TZ }),
+    fmtTip: (d) => d.toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric', timeZone: IST_TZ }),
+    xLabel: 'Day (IST)',
   },
   '1M': {
     label: '1 Month',
     hours: 720,
+    limit: 1000,
     bucketMs: 5 * 24 * 60 * 60 * 1000,
-    limit: 5000,
-    fmtX:   (d) => d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-    fmtTip: (d) => d.toLocaleDateString([], { month: 'long', day: 'numeric' }),
-    xLabel: 'Date',
+    fmtX:   (d) => d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', timeZone: IST_TZ }),
+    fmtTip: (d) => d.toLocaleDateString('en-IN', { month: 'long', day: 'numeric', timeZone: IST_TZ }),
+    xLabel: 'Date (IST)',
   },
 };
 
-/* ─── helpers ─────────────────────────────────────────────── */
+/* ─── IST helpers (UTC+5:30, hardcoded — browser tz never matters) ─── */
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
-// Builds a full 24-slot timeline for today (00:00 – 23:00).
-// Every hour slot is present; value is null if no readings fell in that hour.
-function buildDayTimeline(rows, metricKey) {
-  const now      = new Date();
-  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const dayEnd   = new Date(dayStart.getTime() + 86_400_000);
-
-  const buckets = Array.from({ length: 24 }, () => ({ sum: 0, count: 0 }));
-
-  rows.forEach((row) => {
-    const ts = row.recorded_at ? new Date(row.recorded_at) : null;
-    if (!ts || ts < dayStart || ts >= dayEnd) return;
-    const h   = ts.getHours();
-    const val = metricKey === 'pm25' ? Number(row.pm25) : Number(row[metricKey]);
-    if (!isNaN(val)) { buckets[h].sum += val; buckets[h].count++; }
-  });
-
-  return buckets.map(({ sum, count }, h) => ({
-    time:    `${String(h).padStart(2, '0')}:00`,
-    tipTime: `${String(h).padStart(2, '0')}:00 – ${String(h + 1).padStart(2, '0')}:00`,
-    value:   count > 0 ? Math.round((sum / count) * 10) / 10 : null,
-  }));
+function istMidnightUTC() {
+  const nowIST = Date.now() + IST_OFFSET_MS;
+  const midIST = Math.floor(nowIST / 86_400_000) * 86_400_000;
+  return midIST - IST_OFFSET_MS;
 }
 
-// Generic bucket average for 1W and 1M ranges.
+/* ─── chart data builders ─────────────────────────────────── */
+
+// Raw individual readings for 1D — no averaging, newest-1000 from today, oldest→newest.
+function buildRawDayData(rows, metricKey) {
+  const dayStartUTC = istMidnightUTC();
+  const nowUTC      = Date.now();
+
+  return rows
+    .filter(row => {
+      const ms = row.recorded_at ? new Date(row.recorded_at).getTime() : null;
+      return ms && ms >= dayStartUTC && ms <= nowUTC;
+    })
+    .map(row => {
+      const ms  = new Date(row.recorded_at).getTime();
+      const val = metricKey === 'pm25' ? Number(row.pm25) : Number(row[metricKey]);
+      const d   = new Date(ms + IST_OFFSET_MS);
+      const hh  = String(d.getUTCHours()).padStart(2, '0');
+      const mm  = String(d.getUTCMinutes()).padStart(2, '0');
+      const ss  = String(d.getUTCSeconds()).padStart(2, '0');
+      return {
+        time:    `${hh}:${mm}`,
+        tipTime: `${hh}:${mm}:${ss} IST`,
+        value:   isNaN(val) ? null : Math.round(val * 10) / 10,
+        utcMs:   ms,
+      };
+    })
+    .sort((a, b) => a.utcMs - b.utcMs);
+}
+
+// Bucket-averaged data for 1W / 1M.
 function bucketAverage(rows, rcfg, metricKey) {
   if (!rows.length) return [];
   const map = {};
-  rows.forEach((row) => {
-    const ts  = row.recorded_at ? new Date(row.recorded_at).getTime() : null;
+  rows.forEach(row => {
+    const ts = row.recorded_at ? new Date(row.recorded_at).getTime() : null;
     if (!ts) return;
     const key = Math.floor(ts / rcfg.bucketMs) * rcfg.bucketMs;
     if (!map[key]) map[key] = { sum: 0, count: 0 };
@@ -95,6 +109,11 @@ function bucketAverage(rows, rcfg, metricKey) {
     }));
 }
 
+/* ─── normalise a row so recorded_at is always populated ─── */
+function normalise(row, tsCol) {
+  return { ...row, recorded_at: row[tsCol] || row.recorded_at || row.created_at };
+}
+
 /* ─── component ───────────────────────────────────────────── */
 export const LiveCharts = () => {
   const [metric,  setMetric]  = useState('co2');
@@ -102,81 +121,97 @@ export const LiveCharts = () => {
   const [rows,    setRows]    = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Real-time reading from the store's Supabase subscription
-  const liveReading  = useAppStore(state => state.liveReading);
-  const prevLiveRef  = useRef(null);
+  const liveReading = useAppStore(state => state.liveReading);
+  const prevLiveRef = useRef(null);
 
-  /* ── fetch historical data from Supabase ── */
+  /* ── fetch: always DESC so cap returns newest rows, then reverse for display ── */
   const fetchData = useCallback(async (r) => {
     setLoading(true);
     const rcfg = RANGES[r];
-
-    // 1D: fetch from today's local midnight so buildDayTimeline has full context.
-    // Others: rolling window.
     const since = r === '1D'
-      ? (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString(); })()
+      ? new Date(istMidnightUTC()).toISOString()
       : new Date(Date.now() - rcfg.hours * 3_600_000).toISOString();
 
-    // Try recorded_at, then created_at, then fall back to id-only ordering
     for (const tsCol of ['recorded_at', 'created_at']) {
       const { data, error } = await supabase
         .from('air_quality')
         .select(`id, co2, pm25, pm1, pm4, pm10, temperature, humidity, ${tsCol}`)
         .gte(tsCol, since)
-        .order(tsCol, { ascending: true })
+        .order(tsCol, { ascending: false }) // newest-first → cap hits recent data, not stale old data
         .limit(rcfg.limit);
 
       if (!error && data) {
-        // Normalise whichever ts column we found to "recorded_at" so helpers work uniformly
-        setRows(data.map(row => ({ ...row, recorded_at: row[tsCol] })));
+        setRows([...data].reverse().map(row => normalise(row, tsCol)));
         setLoading(false);
         return;
       }
     }
 
-    // Last resort: no timestamp filter, order by id
-    const { data: fallback } = await supabase
+    // Last resort: no filter, order by id
+    const { data: fb } = await supabase
       .from('air_quality')
       .select('id, co2, pm25, pm1, pm4, pm10, temperature, humidity')
       .order('id', { ascending: false })
-      .limit(rcfg.limit);
-    if (fallback) setRows([...fallback].reverse());
+      .limit(RANGES[r].limit);
+    if (fb) setRows([...fb].reverse());
     setLoading(false);
   }, []);
 
+  // Initial + range-change fetch
   useEffect(() => { fetchData(range); }, [range, fetchData]);
 
-  /* ── real-time: append new reading when store updates (1D only) ── */
+  // Re-fetch every 5 min — catches rows inserted while the tab was inactive or during reconnect bursts
+  useEffect(() => {
+    const t = setInterval(() => fetchData(range), 5 * 60_000);
+    return () => clearInterval(t);
+  }, [range, fetchData]);
+
+  // Re-fetch when tab regains focus — guarantees fresh data after switching away
+  useEffect(() => {
+    const onFocus = () => fetchData(range);
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [range, fetchData]);
+
+  /* ── real-time: append each new reading instantly (1D only) ── */
   useEffect(() => {
     if (!liveReading || range !== '1D') return;
     if (prevLiveRef.current?.id === liveReading.id) return;
     prevLiveRef.current = liveReading;
     setRows(prev => {
       if (prev.some(r => r.id === liveReading.id)) return prev;
-      return [...prev, {
-        ...liveReading,
-        // normalise: use whichever timestamp column the row has
-        recorded_at: liveReading.recorded_at || liveReading.created_at || new Date().toISOString(),
-      }];
+      const lr = normalise(liveReading, 'recorded_at');
+      // Cap local rows at 1100 so memory doesn't grow unbounded between re-fetches
+      const next = [...prev, lr];
+      return next.length > 1100 ? next.slice(-1000) : next;
     });
   }, [liveReading, range]);
 
-  /* ── compute chart data ── */
+  /* ── chart data — liveReading always merged in so fetchData overwrites never drop it ── */
   const data = useMemo(() => {
-    if (range === '1D') return buildDayTimeline(rows, metric);
-    return bucketAverage(rows, RANGES[range], metric);
-  }, [rows, range, metric]);
+    let chartRows = rows;
+    if (liveReading && range === '1D' && !rows.some(r => r.id === liveReading.id)) {
+      chartRows = [...rows, normalise(liveReading, 'recorded_at')];
+    }
+    return range === '1D'
+      ? buildRawDayData(chartRows, metric)
+      : bucketAverage(chartRows, RANGES[range], metric);
+  }, [rows, range, metric, liveReading]);
 
   const mcfg = METRICS[metric];
   const rcfg = RANGES[range];
 
-  // Latest non-null value for the header display
+  // Header number: always the live store value (same as dashboard cards)
   const last = useMemo(() => {
+    if (liveReading) {
+      const v = metric === 'pm25' ? Number(liveReading.pm25) : Number(liveReading[metric]);
+      if (!isNaN(v)) return Math.round(v * 10) / 10;
+    }
     for (let i = data.length - 1; i >= 0; i--) {
       if (data[i].value !== null) return data[i].value;
     }
     return null;
-  }, [data]);
+  }, [data, liveReading, metric]);
 
   /* ── tooltip ── */
   const Tip = ({ active, payload }) => {
@@ -201,58 +236,48 @@ export const LiveCharts = () => {
     );
   };
 
-  /* ─── buttons ─── */
   const RangeBtn = ({ k }) => (
     <button
       onClick={() => setRange(k)}
       style={{
-        padding: '5px 16px',
-        borderRadius: 20,
+        padding: '5px 16px', borderRadius: 20,
         border: range === k ? '1.5px solid #2196f3' : '1.5px solid #e2e8f0',
         background: range === k ? '#2196f3' : '#fff',
         color: range === k ? '#fff' : '#64748b',
-        fontSize: 12,
-        fontWeight: 700,
-        cursor: 'pointer',
-        transition: 'all 0.15s',
-        letterSpacing: '0.03em',
+        fontSize: 12, fontWeight: 700, cursor: 'pointer',
+        transition: 'all 0.15s', letterSpacing: '0.03em',
       }}
-    >
-      {RANGES[k].label}
-    </button>
+    >{RANGES[k].label}</button>
   );
 
   const MetricBtn = ({ k }) => (
     <button
       onClick={() => setMetric(k)}
       style={{
-        padding: '4px 12px',
-        borderRadius: 20,
+        padding: '4px 12px', borderRadius: 20,
         border: metric === k ? '1.5px solid #2196f3' : '1.5px solid #e2e8f0',
         background: metric === k ? '#eff6ff' : '#fff',
         color: metric === k ? '#2196f3' : '#94a3b8',
-        fontSize: 11,
-        fontWeight: 600,
-        cursor: 'pointer',
+        fontSize: 11, fontWeight: 600, cursor: 'pointer',
         transition: 'all 0.15s',
       }}
-    >
-      {METRICS[k].label}
-    </button>
+    >{METRICS[k].label}</button>
   );
+
+  const pointCount = data.filter(d => d.value !== null).length;
+  const xInterval  = range === '1D'
+    ? Math.max(0, Math.floor(pointCount / 10) - 1)
+    : 'preserveStartEnd';
 
   return (
     <div style={{
-      background: '#ffffff',
-      borderRadius: 16,
+      background: '#ffffff', borderRadius: 16,
       border: '1px solid #e2e8f0',
       boxShadow: '0 2px 16px rgba(0,0,0,0.06)',
-      padding: '24px 24px 16px',
-      fontFamily: 'inherit',
-      width: '100%',
+      padding: '24px 24px 16px', fontFamily: 'inherit', width: '100%',
     }}>
 
-      {/* ── header row ── */}
+      {/* header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: 11, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
@@ -279,7 +304,7 @@ export const LiveCharts = () => {
         </div>
       </div>
 
-      {/* ── chart area ── */}
+      {/* chart */}
       <div style={{ width: '100%', height: 320 }}>
         {loading ? (
           <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}>
@@ -288,28 +313,19 @@ export const LiveCharts = () => {
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 10, right: 16, left: 0, bottom: 20 }}>
-
-              <CartesianGrid
-                stroke="#e2e8f0"
-                strokeDasharray="0"
-                strokeWidth={0.8}
-                vertical={true}
-                horizontal={true}
-              />
+              <CartesianGrid stroke="#e2e8f0" strokeDasharray="0" strokeWidth={0.8} />
 
               <XAxis
                 dataKey="time"
                 tick={{ fill: '#475569', fontSize: 10, fontWeight: 500 }}
                 axisLine={{ stroke: '#1e293b', strokeWidth: 2 }}
                 tickLine={{ stroke: '#1e293b', strokeWidth: 1.5 }}
-                interval={range === '1D' ? 1 : 'preserveStartEnd'}
+                interval={xInterval}
                 angle={range === '1D' ? -45 : 0}
                 textAnchor={range === '1D' ? 'end' : 'middle'}
                 height={range === '1D' ? 48 : 36}
                 label={range !== '1D' ? {
-                  value: rcfg.xLabel,
-                  position: 'insideBottom',
-                  offset: -12,
+                  value: rcfg.xLabel, position: 'insideBottom', offset: -12,
                   style: { fill: '#1e293b', fontSize: 12, fontWeight: 700 },
                 } : undefined}
               />
@@ -321,10 +337,8 @@ export const LiveCharts = () => {
                 domain={['auto', 'auto']}
                 width={52}
                 label={{
-                  value: `${mcfg.label} (${mcfg.unit})`,
-                  angle: -90,
-                  position: 'insideLeft',
-                  offset: 14,
+                  value: `${mcfg.label} (${mcfg.unit})`, angle: -90,
+                  position: 'insideLeft', offset: 14,
                   style: { fill: '#1e293b', fontSize: 12, fontWeight: 700 },
                 }}
               />
@@ -337,39 +351,28 @@ export const LiveCharts = () => {
               {mcfg.threshold && (
                 <ReferenceLine
                   y={mcfg.threshold}
-                  stroke="#ef4444"
-                  strokeDasharray="6 4"
-                  strokeWidth={1.5}
-                  label={{
-                    value: `${mcfg.threshold} ${mcfg.unit}`,
-                    fill: '#ef4444',
-                    fontSize: 10,
-                    position: 'insideTopRight',
-                  }}
+                  stroke="#ef4444" strokeDasharray="6 4" strokeWidth={1.5}
+                  label={{ value: `${mcfg.threshold} ${mcfg.unit}`, fill: '#ef4444', fontSize: 10, position: 'insideTopRight' }}
                 />
               )}
 
               <Line
-                type="monotone"
-                dataKey="value"
-                stroke="#2196f3"
-                strokeWidth={3}
-                dot={{ r: 3, fill: '#2196f3', strokeWidth: 0 }}
+                type="monotone" dataKey="value"
+                stroke="#2196f3" strokeWidth={3}
+                dot={pointCount > 300 ? false : { r: 3, fill: '#2196f3', strokeWidth: 0 }}
                 activeDot={{ r: 6, fill: '#2196f3', stroke: '#fff', strokeWidth: 2 }}
-                connectNulls={false}
-                isAnimationActive={false}
+                connectNulls={false} isAnimationActive={false}
               />
-
             </LineChart>
           </ResponsiveContainer>
         )}
       </div>
 
-      {/* ── footer ── */}
+      {/* footer */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 10, color: '#cbd5e1' }}>
         <span>
-          {range === '1D' ? '24-hour view · hourly averages' : range === '1W' ? 'Daily averages' : '5-day averages'}
-          {' · '}{data.filter(d => d.value !== null).length} active points
+          {range === '1D' ? 'Today · most recent readings (midnight IST → now)' : range === '1W' ? 'Daily averages' : '5-day averages'}
+          {' · '}{pointCount} points
         </span>
         <span>{range === '1D' ? '● Live — updates on new reading' : `Past ${rcfg.hours}h`}</span>
       </div>

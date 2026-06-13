@@ -35,7 +35,7 @@
 
 .letter {
   font-family: $font-display;
-  font-size: $fs-5xl;
+  font-size: clamp(2rem, 10vw, $fs-5xl);
   font-weight: $fw-black;
   color: $text-dark;
   letter-spacing: -0.02em;

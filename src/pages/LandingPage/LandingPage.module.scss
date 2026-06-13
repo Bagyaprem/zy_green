@@ -26,19 +26,28 @@
   position: relative;
   width: 100%;
   height: 300vh;
-  background-image: 
+  background-image:
     radial-gradient(900px 450px at 18% 30%, rgba(34,197,94,0.07) 0%, transparent 30%),
     radial-gradient(700px 350px at 82% 70%, rgba(6,182,212,0.03) 0%, transparent 30%);
+
+  @include responsive-max(md) {
+    height: 250vh; // shorter on mobile — 3 full sections is too much
+  }
 }
 
 .stickyStage {
   position: sticky;
-  top: 64px; // Account for navbar height
+  top: 64px;
   height: calc(100vh - 64px);
   width: 100%;
   z-index: 1;
   overflow: hidden;
   pointer-events: none;
+
+  @include responsive-max(md) {
+    top: 56px;
+    height: calc(100vh - 56px);
+  }
 }
 
 .sectionsOverlay {
@@ -51,6 +60,10 @@
   pointer-events: none;
   display: flex;
   flex-direction: column;
+
+  @include responsive-max(md) {
+    height: 250vh;
+  }
 }
 
 /* Helper to position content panels near the globe (slightly right of center) */

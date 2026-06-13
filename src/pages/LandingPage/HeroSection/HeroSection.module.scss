@@ -100,9 +100,12 @@
   color: $primary;
   font-weight: $fw-bold;
   pointer-events: auto;
+  white-space: nowrap;
 
   @include responsive-max(md) {
-    bottom: 24px;
+    bottom: 32px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
   }
 }
 

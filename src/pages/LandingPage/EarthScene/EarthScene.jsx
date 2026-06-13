@@ -467,8 +467,13 @@ export const EarthCanvas = ({ scrollProgress }) => {
   }, []);
 
   return (
-    <div className={styles.canvasContainer}>
-      <Canvas camera={{ position: [0, 0, 6.2], fov: 45 }} dpr={[1, 2]} shadows>
+    <div className={styles.canvasContainer} style={isMobile ? { pointerEvents: 'none' } : undefined}>
+      <Canvas
+        camera={{ position: [0, 0, isMobile ? 7.5 : 6.2], fov: isMobile ? 50 : 45 }}
+        dpr={[1, isMobile ? 1 : 2]}
+        shadows
+        style={isMobile ? { touchAction: 'auto' } : undefined}
+      >
         <EarthSceneInner scrollProgress={scrollProgress} isMobile={isMobile} />
       </Canvas>
     </div>
