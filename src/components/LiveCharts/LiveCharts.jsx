@@ -109,17 +109,38 @@ export const LiveCharts = () => {
   /* ── fetch historical data from Supabase ── */
   const fetchData = useCallback(async (r) => {
     setLoading(true);
-    const rcfg  = RANGES[r];
-    const since = new Date(Date.now() - rcfg.hours * 3_600_000).toISOString();
+    const rcfg = RANGES[r];
 
-    const { data, error } = await supabase
+    // 1D: fetch from today's local midnight so buildDayTimeline has full context.
+    // Others: rolling window.
+    const since = r === '1D'
+      ? (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString(); })()
+      : new Date(Date.now() - rcfg.hours * 3_600_000).toISOString();
+
+    // Try recorded_at, then created_at, then fall back to id-only ordering
+    for (const tsCol of ['recorded_at', 'created_at']) {
+      const { data, error } = await supabase
+        .from('air_quality')
+        .select(`id, co2, pm25, pm1, pm4, pm10, temperature, humidity, ${tsCol}`)
+        .gte(tsCol, since)
+        .order(tsCol, { ascending: true })
+        .limit(rcfg.limit);
+
+      if (!error && data) {
+        // Normalise whichever ts column we found to "recorded_at" so helpers work uniformly
+        setRows(data.map(row => ({ ...row, recorded_at: row[tsCol] })));
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Last resort: no timestamp filter, order by id
+    const { data: fallback } = await supabase
       .from('air_quality')
-      .select('id, co2, pm25, pm1, pm4, pm10, temperature, humidity, recorded_at')
-      .gte('recorded_at', since)
-      .order('recorded_at', { ascending: true })
+      .select('id, co2, pm25, pm1, pm4, pm10, temperature, humidity')
+      .order('id', { ascending: false })
       .limit(rcfg.limit);
-
-    if (!error && data) setRows(data);
+    if (fallback) setRows([...fallback].reverse());
     setLoading(false);
   }, []);
 
@@ -134,7 +155,8 @@ export const LiveCharts = () => {
       if (prev.some(r => r.id === liveReading.id)) return prev;
       return [...prev, {
         ...liveReading,
-        recorded_at: liveReading.recorded_at || new Date().toISOString(),
+        // normalise: use whichever timestamp column the row has
+        recorded_at: liveReading.recorded_at || liveReading.created_at || new Date().toISOString(),
       }];
     });
   }, [liveReading, range]);
