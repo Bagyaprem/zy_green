@@ -59,15 +59,9 @@ export const DashboardPage = () => {
           </div>
 
           {/* Device status badge */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
+          <div className={styles.deviceBadge} style={{
             background: isLive ? '#f0fdf4' : '#fef2f2',
             border: `1.5px solid ${isLive ? '#bbf7d0' : '#fecaca'}`,
-            borderRadius: 12,
-            padding: '8px 16px',
-            fontSize: 13,
           }}>
             <Cpu size={15} color={isLive ? '#16a34a' : '#dc2626'} />
             <span style={{ fontWeight: 700, color: '#0f172a' }}>Air Quality Monitor · Machine 1</span>

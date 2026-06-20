@@ -9,17 +9,17 @@ import './LiveCharts.css';
 
 /* ─── config ──────────────────────────────────────────────── */
 const METRICS = {
-  co2:         { label: 'CO₂',        color: '#2196f3', unit: 'ppm',   threshold: 1000 },
-  pm25:        { label: 'PM2.5',       color: '#2196f3', unit: 'µg/m³', threshold: 35  },
-  temperature: { label: 'Temperature', color: '#2196f3', unit: '°C',    threshold: null },
+  co2:         { label: 'CO₂',        color: '#ef4444', unit: 'ppm',   threshold: 1000 },
+  pm1:         { label: 'PM1.0',       color: '#22c55e', unit: 'µg/m³', threshold: null },
+  pm25:        { label: 'PM2.5',       color: '#eab308', unit: 'µg/m³', threshold: 35  },
+  pm4:         { label: 'PM4.0',       color: '#f97316', unit: 'µg/m³', threshold: null },
+  pm10:        { label: 'PM10',        color: '#a855f7', unit: 'µg/m³', threshold: null },
+  temperature: { label: 'Temperature', color: '#0ea5e9', unit: '°C',    threshold: null },
   humidity:    { label: 'Humidity',    color: '#2196f3', unit: '%',     threshold: null },
 };
 
 const IST_TZ = 'Asia/Kolkata';
 
-// Limits are set at 1000 — Supabase default row cap; asking for more silently returns 1000 anyway.
-// Fetching DESC (newest-first) then reversing ensures we ALWAYS get the most recent readings,
-// not the oldest ones (which ascending + cap would give).
 const RANGES = {
   '1D': {
     label: '1 Day',
@@ -137,7 +137,7 @@ export const LiveCharts = () => {
         .from('air_quality')
         .select(`id, co2, pm25, pm1, pm4, pm10, temperature, humidity, ${tsCol}`)
         .gte(tsCol, since)
-        .order(tsCol, { ascending: false }) // newest-first → cap hits recent data, not stale old data
+        .order(tsCol, { ascending: false })
         .limit(rcfg.limit);
 
       if (!error && data) {
@@ -147,7 +147,6 @@ export const LiveCharts = () => {
       }
     }
 
-    // Last resort: no filter, order by id
     const { data: fb } = await supabase
       .from('air_quality')
       .select('id, co2, pm25, pm1, pm4, pm10, temperature, humidity')
@@ -157,16 +156,13 @@ export const LiveCharts = () => {
     setLoading(false);
   }, []);
 
-  // Initial + range-change fetch
   useEffect(() => { fetchData(range); }, [range, fetchData]);
 
-  // Re-fetch every 5 min — catches rows inserted while the tab was inactive or during reconnect bursts
   useEffect(() => {
     const t = setInterval(() => fetchData(range), 5 * 60_000);
     return () => clearInterval(t);
   }, [range, fetchData]);
 
-  // Re-fetch when tab regains focus — guarantees fresh data after switching away
   useEffect(() => {
     const onFocus = () => fetchData(range);
     window.addEventListener('focus', onFocus);
@@ -181,13 +177,12 @@ export const LiveCharts = () => {
     setRows(prev => {
       if (prev.some(r => r.id === liveReading.id)) return prev;
       const lr = normalise(liveReading, 'recorded_at');
-      // Cap local rows at 1100 so memory doesn't grow unbounded between re-fetches
       const next = [...prev, lr];
       return next.length > 1100 ? next.slice(-1000) : next;
     });
   }, [liveReading, range]);
 
-  /* ── chart data — liveReading always merged in so fetchData overwrites never drop it ── */
+  /* ── chart data ── */
   const data = useMemo(() => {
     let chartRows = rows;
     if (liveReading && range === '1D' && !rows.some(r => r.id === liveReading.id)) {
@@ -201,7 +196,6 @@ export const LiveCharts = () => {
   const mcfg = METRICS[metric];
   const rcfg = RANGES[range];
 
-  // Header number: always the live store value (same as dashboard cards)
   const last = useMemo(() => {
     if (liveReading) {
       const v = metric === 'pm25' ? Number(liveReading.pm25) : Number(liveReading[metric]);
@@ -250,19 +244,22 @@ export const LiveCharts = () => {
     >{RANGES[k].label}</button>
   );
 
-  const MetricBtn = ({ k }) => (
-    <button
-      onClick={() => setMetric(k)}
-      style={{
-        padding: '4px 12px', borderRadius: 20,
-        border: metric === k ? '1.5px solid #2196f3' : '1.5px solid #e2e8f0',
-        background: metric === k ? '#eff6ff' : '#fff',
-        color: metric === k ? '#2196f3' : '#94a3b8',
-        fontSize: 11, fontWeight: 600, cursor: 'pointer',
-        transition: 'all 0.15s',
-      }}
-    >{METRICS[k].label}</button>
-  );
+  const MetricBtn = ({ k }) => {
+    const c = METRICS[k].color;
+    return (
+      <button
+        onClick={() => setMetric(k)}
+        style={{
+          padding: '4px 12px', borderRadius: 20,
+          border: metric === k ? `1.5px solid ${c}` : '1.5px solid #e2e8f0',
+          background: metric === k ? `${c}18` : '#fff',
+          color: metric === k ? c : '#94a3b8',
+          fontSize: 11, fontWeight: 600, cursor: 'pointer',
+          transition: 'all 0.15s',
+        }}
+      >{METRICS[k].label}</button>
+    );
+  };
 
   const pointCount = data.filter(d => d.value !== null).length;
   const xInterval  = range === '1D'
@@ -270,15 +267,10 @@ export const LiveCharts = () => {
     : 'preserveStartEnd';
 
   return (
-    <div style={{
-      background: '#ffffff', borderRadius: 16,
-      border: '1px solid #e2e8f0',
-      boxShadow: '0 2px 16px rgba(0,0,0,0.06)',
-      padding: '24px 24px 16px', fontFamily: 'inherit', width: '100%',
-    }}>
+    <div className="lc-root">
 
       {/* header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+      <div className="lc-header">
         <div>
           <div style={{ fontSize: 11, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
             {mcfg.label} · {rcfg.label}
@@ -294,18 +286,18 @@ export const LiveCharts = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
-          <div style={{ display: 'flex', gap: 6 }}>
+        <div className="lc-controls">
+          <div className="lc-range-row">
             {Object.keys(RANGES).map(k => <RangeBtn key={k} k={k} />)}
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div className="lc-metric-row">
             {Object.keys(METRICS).map(k => <MetricBtn key={k} k={k} />)}
           </div>
         </div>
       </div>
 
       {/* chart */}
-      <div style={{ width: '100%', height: 320 }}>
+      <div className="lc-chart-area">
         {loading ? (
           <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}>
             Loading…
@@ -345,7 +337,7 @@ export const LiveCharts = () => {
 
               <Tooltip
                 content={<Tip />}
-                cursor={{ stroke: '#2196f3', strokeWidth: 1, strokeDasharray: '4 3', opacity: 0.6 }}
+                cursor={{ stroke: mcfg.color, strokeWidth: 1, strokeDasharray: '4 3', opacity: 0.6 }}
               />
 
               {mcfg.threshold && (
@@ -358,9 +350,9 @@ export const LiveCharts = () => {
 
               <Line
                 type="monotone" dataKey="value"
-                stroke="#2196f3" strokeWidth={3}
-                dot={pointCount > 300 ? false : { r: 3, fill: '#2196f3', strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: '#2196f3', stroke: '#fff', strokeWidth: 2 }}
+                stroke={mcfg.color} strokeWidth={3}
+                dot={pointCount > 300 ? false : { r: 3, fill: mcfg.color, strokeWidth: 0 }}
+                activeDot={{ r: 6, fill: mcfg.color, stroke: '#fff', strokeWidth: 2 }}
                 connectNulls={false} isAnimationActive={false}
               />
             </LineChart>
@@ -369,7 +361,7 @@ export const LiveCharts = () => {
       </div>
 
       {/* footer */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 10, color: '#cbd5e1' }}>
+      <div className="lc-footer">
         <span>
           {range === '1D' ? 'Today · most recent readings (midnight IST → now)' : range === '1W' ? 'Daily averages' : '5-day averages'}
           {' · '}{pointCount} points

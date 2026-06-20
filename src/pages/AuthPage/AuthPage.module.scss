@@ -6,19 +6,28 @@
   width: 100%;
   @include flex-center;
   background: $bg-dark;
-  padding: $space-6;
+  padding: $space-4;
+
+  @include responsive(sm) {
+    padding: $space-6;
+  }
 }
 
 .card {
   @include glass-panel;
-  padding: $space-8;
+  padding: $space-5;
   border-radius: $radius-2xl;
   max-width: 440px;
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: $space-6;
+  gap: $space-5;
   text-align: center;
+
+  @include responsive(sm) {
+    padding: $space-8;
+    gap: $space-6;
+  }
 }
 
 .header {
@@ -72,6 +81,8 @@
 }
 
 .input {
+  // Full-width and touch-friendly
+  width: 100%;
   padding: $space-3;
   border-radius: $radius-lg;
   border: 1px solid #e2e8f0;
@@ -91,6 +102,8 @@
 .submitBtn {
   margin-top: $space-2;
   width: 100%;
+  // 44px minimum touch target
+  min-height: 44px;
   padding: $space-3;
   border-radius: $radius-lg;
   background: $primary;

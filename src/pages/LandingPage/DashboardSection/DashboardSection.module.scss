@@ -49,7 +49,7 @@
 
 .title {
   font-family: $font-display;
-  font-size: $fs-3xl;
+  font-size: clamp(1.5rem, 5vw, #{$fs-3xl});
   font-weight: $fw-black;
   color: $text-dark;
   letter-spacing: -0.03em;
@@ -109,6 +109,9 @@
 .chartCol, .gaugeCol {
   display: flex;
   width: 100%;
+  // Prevent charts from overflowing their container
+  min-width: 0;
+  overflow: hidden;
 }
 
 .devicesRow {

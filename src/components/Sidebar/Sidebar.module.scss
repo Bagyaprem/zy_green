@@ -11,7 +11,10 @@
   flex-direction: column;
   justify-content: space-between;
   padding: $space-4 $space-2;
+  // Smooth collapse/expand transition
   transition: width $transition-smooth;
+  // Prevent sidebar from causing horizontal scroll in flex layout
+  flex-shrink: 0;
 
   &.collapsed {
     width: 64px;
@@ -19,6 +22,7 @@
     .link { justify-content: center; padding: $space-2; }
   }
 
+  // Hide entirely below md — the Navbar's mobile menu handles navigation
   @include responsive-max(md) { display: none; }
 }
 
@@ -32,6 +36,8 @@
   display: flex;
   align-items: center;
   gap: $space-3;
+  // Minimum 44px touch target height
+  min-height: 44px;
   padding: $space-2 $space-3;
   border-radius: $radius-lg;
   color: $text-muted;
@@ -58,10 +64,16 @@
 
 .toggleBtn {
   margin-top: $space-4;
+  // Minimum 44×44 touch target
+  min-width: 44px;
+  min-height: 44px;
   padding: $space-2;
   border-radius: $radius-full;
   color: $text-dim;
   transition: all $transition-smooth;
   align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   &:hover { color: $text-white; background: rgba(255, 255, 255, 0.05); }
 }

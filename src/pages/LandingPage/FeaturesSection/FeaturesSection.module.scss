@@ -26,14 +26,14 @@
 
 .title {
   font-family: $font-display;
-  font-size: $fs-3xl;
+  font-size: clamp(1.5rem, 5vw, #{$fs-3xl});
   font-weight: $fw-black;
   color: $text-dark;
   line-height: 1.2;
   letter-spacing: -0.02em;
 
   @include responsive(sm) {
-    font-size: $fs-4xl;
+    font-size: clamp(1.875rem, 5vw, #{$fs-4xl});
   }
 }
 

@@ -18,3 +18,91 @@
 .lc-tab {
   transition: all 0.15s ease;
 }
+
+/* ── Responsive chart container ── */
+.lc-root {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+  padding: 24px 24px 16px;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .lc-root {
+    padding: 16px 12px 12px;
+  }
+}
+
+/* Header row: value left, controls right. Stack vertically on mobile */
+.lc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+/* Controls column: range buttons + metric buttons */
+.lc-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+/* Button rows — allow wrapping so they never overflow on mobile */
+.lc-range-row,
+.lc-metric-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .lc-controls {
+    align-items: flex-start;
+    width: 100%;
+  }
+  .lc-range-row,
+  .lc-metric-row {
+    justify-content: flex-start;
+  }
+  /* Minimum 44px touch targets for buttons */
+  .lc-range-row button,
+  .lc-metric-row button {
+    min-height: 36px;
+    min-width: 44px;
+  }
+}
+
+/* Chart area: ensure it never exceeds container width */
+.lc-chart-area {
+  width: 100%;
+  /* Height scales down slightly on very small screens */
+  height: 320px;
+}
+
+@media (max-width: 480px) {
+  .lc-chart-area {
+    height: 220px;
+  }
+}
+
+/* Footer row */
+.lc-footer {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 10px;
+  color: #cbd5e1;
+}

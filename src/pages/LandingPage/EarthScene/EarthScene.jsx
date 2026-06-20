@@ -472,7 +472,13 @@ export const EarthCanvas = ({ scrollProgress }) => {
         camera={{ position: [0, 0, isMobile ? 7.5 : 6.2], fov: isMobile ? 50 : 45 }}
         dpr={[1, isMobile ? 1 : 2]}
         shadows
-        style={isMobile ? { touchAction: 'auto' } : undefined}
+        style={{ touchAction: isMobile ? 'pan-y' : 'none' }}
+        onCreated={({ gl }) => {
+          if (isMobile) {
+            gl.domElement.style.touchAction = 'pan-y';
+            gl.domElement.style.pointerEvents = 'none';
+          }
+        }}
       >
         <EarthSceneInner scrollProgress={scrollProgress} isMobile={isMobile} />
       </Canvas>

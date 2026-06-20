@@ -71,7 +71,8 @@
 }
 
 @mixin section-padding {
-  padding: $space-16 $space-4;
+  // Reduced top/bottom padding on mobile to avoid excessive whitespace
+  padding: $space-12 $space-4;
   @include responsive(sm) { padding: $space-16 $space-6; }
   @include responsive(lg) { padding: $space-24 $space-8; }
 }

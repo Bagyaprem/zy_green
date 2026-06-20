@@ -1,1 +1,56 @@
 /* ReportsPage global overrides */
+
+/* Full data table section — responsive wrapper */
+.rp-table-section {
+  margin-top: 32px;
+}
+
+.rp-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* The table's outer scroll container */
+.rp-table-scroll {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(15,23,42,0.6);
+  /* Needed so the table doesn't blow out the page width on mobile */
+  max-width: 100%;
+}
+
+.rp-table-scroll table {
+  /* min-width lets the table scroll horizontally rather than collapsing columns */
+  min-width: 640px;
+}
+
+/* Pagination row */
+.rp-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 0 4px;
+}
+
+/* Pagination buttons — meet 44px touch target */
+.rp-pag-btn {
+  min-width: 36px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 480px) {
+  .rp-table-section > div:first-child h3 {
+    font-size: 13px !important;
+  }
+}

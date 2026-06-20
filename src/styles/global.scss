@@ -54,6 +54,9 @@ h1, h2, h3, h4, h5, h6 {
   font-family: $font-display;
   font-weight: $fw-bold;
   line-height: 1.2;
+  // Prevent text from overflowing narrow containers
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 a {
@@ -72,6 +75,8 @@ button {
 input, textarea, select {
   font-family: inherit;
   font-size: inherit;
+  // Prevent inputs from overflowing their containers on mobile
+  max-width: 100%;
 }
 
 img {

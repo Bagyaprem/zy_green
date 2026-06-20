@@ -13,12 +13,20 @@
 
 .mainContent {
   flex: 1;
-  padding: $space-6;
+  padding: $space-4;
   display: flex;
   flex-direction: column;
-  gap: $space-6;
+  gap: $space-4;
   overflow-y: auto;
-  
+  // Prevent content from causing horizontal scroll
+  min-width: 0;
+  max-width: 100%;
+
+  @include responsive(sm) {
+    padding: $space-6;
+    gap: $space-6;
+  }
+
   @include responsive(lg) {
     padding: $space-8 $space-12 $space-24 $space-12; // Extra bottom padding for floating dock
     gap: $space-8;
@@ -40,7 +48,7 @@
 }
 
 .title {
-  font-size: $fs-2xl;
+  font-size: clamp(1.25rem, 4vw, #{$fs-2xl});
   font-weight: $fw-bold;
   color: $text-dark;
 }
@@ -80,8 +88,31 @@
     grid-template-columns: repeat(2, 1fr);
   }
 
+  @include responsive(lg) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
   @include responsive(xl) {
     grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+// Device status badge — responsive utility class
+.deviceBadge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 8px 16px;
+  font-size: 13px;
+  min-width: 0; // Allow shrinking
+  flex-shrink: 1;
+
+  @include responsive-max(sm) {
+    font-size: 11px;
+    padding: 6px 10px;
+    gap: 6px;
   }
 }
 
@@ -89,10 +120,6 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: $space-6;
-
-  @include responsive(lg) {
-    grid-template-columns: 2fr 1fr;
-  }
 }
 
 .chartCol, .gaugeCol {

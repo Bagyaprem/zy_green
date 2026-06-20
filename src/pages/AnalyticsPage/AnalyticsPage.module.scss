@@ -13,11 +13,18 @@
 
 .mainContent {
   flex: 1;
-  padding: $space-6;
+  padding: $space-4;
   display: flex;
   flex-direction: column;
-  gap: $space-6;
+  gap: $space-4;
   overflow-y: auto;
+  min-width: 0;
+  max-width: 100%;
+
+  @include responsive(sm) {
+    padding: $space-6;
+    gap: $space-6;
+  }
 
   @include responsive(lg) {
     padding: $space-8 $space-12 $space-24 $space-12; // Extra bottom padding for floating dock
@@ -38,7 +45,7 @@
 }
 
 .title {
-  font-size: $fs-2xl;
+  font-size: clamp(1.25rem, 4vw, #{$fs-2xl});
   font-weight: $fw-bold;
   color: $text-dark;
 }
@@ -50,8 +57,12 @@
 
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: $space-4;
+
+  @include responsive(sm) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 
   @include responsive(lg) {
     grid-template-columns: repeat(4, 1fr);
@@ -78,7 +89,7 @@
 
 .statVal {
   font-family: $font-display;
-  font-size: $fs-3xl;
+  font-size: clamp(1.25rem, 4vw, #{$fs-3xl});
   font-weight: $fw-bold;
   color: $text-dark;
   display: flex;
@@ -109,17 +120,26 @@
 .chartCol, .insightsCol {
   display: flex;
   width: 100%;
+  // Prevent charts from overflowing their column
+  min-width: 0;
+  overflow: hidden;
 }
 
 .chartCard, .insightsCard {
   @include glass-panel;
-  padding: $space-6;
+  padding: $space-4;
   border-radius: $radius-xl;
   width: 100%;
+  // Prevent chart overflow in flex column context
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: $space-5;
   border: 1px solid #f1f5f9;
+
+  @include responsive(sm) {
+    padding: $space-6;
+  }
 }
 
 .cardTitle {

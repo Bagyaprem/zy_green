@@ -13,20 +13,29 @@
 
 .mainContent {
   flex: 1;
-  padding: $space-6;
+  padding: $space-4;
   display: flex;
   flex-direction: column;
-  gap: $space-6;
+  gap: $space-4;
   overflow-y: auto;
+  min-width: 0;
+  max-width: 100%;
+
+  @include responsive(sm) {
+    padding: $space-6;
+    gap: $space-6;
+  }
 
   @include responsive(lg) {
-    padding: $space-8 $space-12 $space-24 $space-12; // Extra bottom padding for floating dock
+    padding: $space-8 $space-12 $space-24 $space-12;
     gap: $space-8;
   }
 }
 
 .pageHeader {
   @include flex-between;
+  flex-wrap: wrap;
+  gap: $space-3;
   border-bottom: 1px solid #f1f5f9;
   padding-bottom: $space-4;
 }
@@ -38,7 +47,7 @@
 }
 
 .title {
-  font-size: $fs-2xl;
+  font-size: clamp(1.25rem, 4vw, #{$fs-2xl});
   font-weight: $fw-bold;
   color: $text-dark;
 }
@@ -46,6 +55,12 @@
 .subtitle {
   font-size: $fs-sm;
   color: $text-muted;
+}
+
+// Refresh button — ensures 44px touch target on mobile
+.refreshBtn {
+  min-height: 44px;
+  min-width: 44px;
 }
 
 .filterBar {

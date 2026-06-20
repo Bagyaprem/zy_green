@@ -2,3 +2,18 @@
 .orbitalLabel {
   transform: scale(0.9);
 }
+
+/* Allow vertical page scrolling to pass through the 3D canvas on mobile.
+   Without this, touching the globe on a mobile device captures scroll events
+   and the page can't be scrolled past the sticky stage. */
+canvas {
+  touch-action: pan-y !important;
+}
+
+@media (max-width: 767px) {
+  /* On small screens the canvas is just a background — disable pointer events
+     so the content sections above it remain tappable. */
+  .canvasContainer canvas {
+    pointer-events: none;
+  }
+}

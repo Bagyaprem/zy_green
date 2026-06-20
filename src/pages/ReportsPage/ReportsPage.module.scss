@@ -13,11 +13,18 @@
 
 .mainContent {
   flex: 1;
-  padding: $space-6;
+  padding: $space-4;
   display: flex;
   flex-direction: column;
-  gap: $space-6;
+  gap: $space-4;
   overflow-y: auto;
+  min-width: 0;
+  max-width: 100%;
+
+  @include responsive(sm) {
+    padding: $space-6;
+    gap: $space-6;
+  }
 
   @include responsive(lg) {
     padding: $space-8 $space-12 $space-24 $space-12; // Extra bottom padding for floating dock
@@ -38,7 +45,7 @@
 }
 
 .title {
-  font-size: $fs-2xl;
+  font-size: clamp(1.25rem, 4vw, #{$fs-2xl});
   font-weight: $fw-bold;
   color: $text-dark;
 }
@@ -46,6 +53,8 @@
 .subtitle {
   font-size: $fs-sm;
   color: $text-muted;
+  // Allow long subtitles to wrap rather than overflow
+  overflow-wrap: break-word;
 }
 
 .bodyGrid {
@@ -157,6 +166,8 @@
 
 .pdfBtn, .excelBtn, .csvBtn {
   width: 100%;
+  // Minimum 44px touch target on mobile
+  min-height: 44px;
   padding: $space-3;
   border-radius: $radius-lg;
   font-size: $fs-sm;
@@ -165,7 +176,7 @@
   gap: $space-2;
   transition: all $transition-smooth;
   cursor: pointer;
-  
+
   &:disabled {
     opacity: 0.3;
     cursor: not-allowed;
@@ -278,7 +289,8 @@
 
 .mockStatsSummary {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  // Collapse to 1-col on narrow doc preview widths
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
   gap: $space-2;
   padding: $space-2 $space-3;
   background: #f8fafc;
@@ -292,9 +304,10 @@
 .mockTable {
   border: 1px solid #e2e8f0;
   border-radius: $radius-md;
-  overflow: auto;
+  overflow-x: auto;
   font-size: 10px;
-  min-width: 100%;
+  // Ensure the table scrolls horizontally rather than breaking the layout
+  max-width: 100%;
 }
 
 .mockRowHeader {
@@ -305,11 +318,15 @@
 
 .mockRowHeader, .mockRow {
   display: grid;
-  grid-template-columns: 1.8fr repeat(7, minmax(90px, 1fr));
-  gap: $space-3;
+  // The doc preview mock table is inside an overflow:auto container — use fixed px
+  // columns so it scrolls rather than squishing content into unreadable widths.
+  grid-template-columns: 1.8fr repeat(7, minmax(60px, 1fr));
+  gap: $space-2;
   padding: $space-2;
   align-items: center;
   white-space: nowrap;
+  // Ensure text doesn't escape columns
+  min-width: 520px;
 }
 
 .mockRow {

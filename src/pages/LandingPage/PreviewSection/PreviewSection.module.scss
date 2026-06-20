@@ -48,14 +48,14 @@
 
 .title {
   font-family: $font-display;
-  font-size: $fs-3xl;
+  font-size: clamp(1.5rem, 5vw, #{$fs-3xl});
   font-weight: $fw-black;
   color: $text-dark;
   line-height: 1.2;
   letter-spacing: -0.02em;
 
   @include responsive(sm) {
-    font-size: $fs-4xl;
+    font-size: clamp(1.875rem, 5vw, #{$fs-4xl});
   }
 }
 
@@ -74,9 +74,16 @@
   align-items: center;
   gap: $space-4;
   flex-wrap: wrap;
+
+  @include responsive-max(sm) {
+    width: 100%;
+  }
 }
 
 .primaryBtn {
+  // Full-width on mobile for easier tapping
+  width: 100%;
+  min-height: 44px;
   padding: $space-3 $space-6;
   border-radius: $radius-lg;
   background: $primary;
@@ -85,7 +92,11 @@
   font-size: $fs-base;
   box-shadow: $shadow-md;
   transition: all $transition-smooth;
-  
+
+  @include responsive(sm) {
+    width: auto;
+  }
+
   &:hover {
     background: rgba($primary, 0.9);
     box-shadow: $shadow-neon-green;
@@ -94,6 +105,9 @@
 }
 
 .secondaryBtn {
+  // Full-width on mobile for easier tapping
+  width: 100%;
+  min-height: 44px;
   padding: $space-3 $space-6;
   border-radius: $radius-lg;
   background: white;
@@ -102,6 +116,10 @@
   font-weight: $fw-semibold;
   font-size: $fs-base;
   transition: all $transition-smooth;
+
+  @include responsive(sm) {
+    width: auto;
+  }
 
   &:hover {
     background: #f1f5f9;
@@ -192,8 +210,13 @@
 
 .telemetryGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  // Single column on the narrowest screens, 3-col on md+
+  grid-template-columns: 1fr;
   gap: $space-3;
+
+  @include responsive(sm) {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .telemetryCard {
@@ -227,10 +250,10 @@
 
 .telemetryVal {
   font-family: $font-display;
-  font-size: $fs-2xl;
+  font-size: clamp(1rem, 3vw, #{$fs-2xl});
   font-weight: $fw-bold;
   color: $text-dark;
-  
+
   .unit {
     font-size: $fs-xs;
     color: $text-dim;

@@ -12,31 +12,13 @@ export const ReportsPage = () => {
   const [exporting, setExporting] = useState(false);
   const [tablePage, setTablePage] = useState(1);
   const TABLE_PAGE_SIZE = 20;
-  const [dateRange, setDateRange] = useState('today');
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
-  // Filter records based on selected range
+  // Filter records based on start and end date
   const getFilteredReadings = () => {
-    const now = new Date();
-    let start = new Date();
-    let end = new Date();
-
-    if (dateRange === 'today') {
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    } else if (dateRange === 'yesterday') {
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-      end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
-    } else if (dateRange === '7d') {
-      start = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
-    } else if (dateRange === '30d') {
-      start = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
-    } else if (dateRange === '90d') {
-      start = new Date(now.getTime() - 90 * 24 * 3600 * 1000);
-    } else if (dateRange === 'custom') {
-      start = customStartDate ? new Date(customStartDate) : new Date(0);
-      end = customEndDate ? new Date(customEndDate) : new Date();
-    }
+    const start = startDate ? new Date(startDate) : new Date(0);
+    const end = endDate ? new Date(endDate) : new Date();
 
     return readings.filter(item => {
       const t = new Date(item.created_at).getTime();
@@ -93,7 +75,7 @@ export const ReportsPage = () => {
       // Document Metadata
       doc.setFontSize(12);
       doc.setTextColor(15, 23, 42);
-      doc.text(`Scope Range: ${dateRange.toUpperCase()}`, 14, 60);
+      doc.text(`Scope Range: ${startDate ? new Date(startDate).toLocaleDateString() : 'All'} to ${endDate ? new Date(endDate).toLocaleDateString() : 'Now'}`, 14, 60);
       doc.text(`Total Telemetry Packets: ${activeReadings.length}`, 14, 68);
       doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 76);
 
@@ -162,7 +144,7 @@ export const ReportsPage = () => {
         }
       });
 
-      doc.save(`zygreen_environmental_audit_${dateRange}.pdf`);
+      doc.save(`zygreen_environmental_audit_${startDate ? startDate.slice(0,10) : 'all'}_to_${endDate ? endDate.slice(0,10) : 'now'}.pdf`);
     } catch (err) {
       console.error('Failed to export PDF:', err);
     }
@@ -187,7 +169,7 @@ export const ReportsPage = () => {
       const ws = XLSX.utils.json_to_sheet(formatted);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'ZyGreen Telemetry Logs');
-      XLSX.writeFile(wb, `zygreen_environmental_audit_${dateRange}.xlsx`);
+      XLSX.writeFile(wb, `zygreen_environmental_audit_${startDate ? startDate.slice(0,10) : 'all'}_to_${endDate ? endDate.slice(0,10) : 'now'}.xlsx`);
     } catch (err) {
       console.error('Failed to export Excel:', err);
     }
@@ -214,7 +196,7 @@ export const ReportsPage = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.setAttribute('href', url);
-      link.setAttribute('download', `zygreen_environmental_audit_${dateRange}.csv`);
+      link.setAttribute('download', `zygreen_environmental_audit_${startDate ? startDate.slice(0,10) : 'all'}_to_${endDate ? endDate.slice(0,10) : 'now'}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -239,46 +221,30 @@ export const ReportsPage = () => {
           <div className={styles.configCard}>
             <h3 className={styles.cardTitle}>Report Configurations</h3>
             
-            <div className={styles.inputGroup}>
-              <label className={styles.label}>
-                <Calendar size={14} /> Date Filter Scope
-              </label>
-              <select
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
-                className={styles.select}
-              >
-                <option value="today">Today</option>
-                <option value="yesterday">Yesterday</option>
-                <option value="7d">Last 7 Days</option>
-                <option value="30d">Last 30 Days</option>
-                <option value="90d">Last 90 Days</option>
-                <option value="custom">Custom Range</option>
-              </select>
-            </div>
-
-            {dateRange === 'custom' && (
-              <div className={styles.customRangeGroup}>
-                <div className={styles.inputGroup}>
-                  <label className={styles.label}>Start Date & Time</label>
-                  <input
-                    type="datetime-local"
-                    value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                    className={styles.input}
-                  />
-                </div>
-                <div className={styles.inputGroup}>
-                  <label className={styles.label}>End Date & Time</label>
-                  <input
-                    type="datetime-local"
-                    value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                    className={styles.input}
-                  />
-                </div>
+            <div className={styles.customRangeGroup}>
+              <div className={styles.inputGroup}>
+                <label className={styles.label}>
+                  <Calendar size={14} /> Start Date
+                </label>
+                <input
+                  type="datetime-local"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className={styles.input}
+                />
               </div>
-            )}
+              <div className={styles.inputGroup}>
+                <label className={styles.label}>
+                  <Calendar size={14} /> End Date
+                </label>
+                <input
+                  type="datetime-local"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className={styles.input}
+                />
+              </div>
+            </div>
 
             <div className={styles.statsPreview}>
               <div className={styles.statPreviewItem}>
@@ -330,7 +296,7 @@ export const ReportsPage = () => {
             <div className={styles.docMockup}>
               <div className={styles.docHeader}>
                 <h4>ZYGREEN ATMOSPHERIC AUDIT REPORT</h4>
-                <span>Scope: {dateRange.toUpperCase()} • Size: {activeReadings.length} points</span>
+                <span>Scope: {startDate ? new Date(startDate).toLocaleDateString() : 'All'} → {endDate ? new Date(endDate).toLocaleDateString() : 'Now'} • Size: {activeReadings.length} points</span>
               </div>
               
               <div className={styles.docBody}>
@@ -376,10 +342,10 @@ export const ReportsPage = () => {
         </div>
 
         {/* ── Full data table ── */}
-        <div style={{ marginTop: '32px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <div className="rp-table-section">
+          <div className="rp-table-header">
             <div>
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#f1f5f9' }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#0f172a' }}>
                 Today's Sensor Readings
               </h3>
               <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748b' }}>
@@ -388,7 +354,7 @@ export const ReportsPage = () => {
             </div>
           </div>
 
-          <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(15,23,42,0.6)' }}>
+          <div className="rp-table-scroll">
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
@@ -427,7 +393,7 @@ export const ReportsPage = () => {
 
           {/* Pagination */}
           {activeReadings.length > TABLE_PAGE_SIZE && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', padding: '0 4px' }}>
+            <div className="rp-pagination">
               <span style={{ fontSize: '12px', color: '#64748b' }}>
                 Page {tablePage} of {Math.ceil(activeReadings.length / TABLE_PAGE_SIZE)}
               </span>
@@ -435,6 +401,7 @@ export const ReportsPage = () => {
                 <button
                   onClick={() => setTablePage(p => Math.max(1, p - 1))}
                   disabled={tablePage === 1}
+                  className="rp-pag-btn"
                   style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: tablePage === 1 ? '#334155' : '#94a3b8', cursor: tablePage === 1 ? 'not-allowed' : 'pointer' }}
                 >
                   <ChevronLeft size={14} />
@@ -442,6 +409,7 @@ export const ReportsPage = () => {
                 <button
                   onClick={() => setTablePage(p => Math.min(Math.ceil(activeReadings.length / TABLE_PAGE_SIZE), p + 1))}
                   disabled={tablePage === Math.ceil(activeReadings.length / TABLE_PAGE_SIZE)}
+                  className="rp-pag-btn"
                   style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#94a3b8', cursor: 'pointer' }}
                 >
                   <ChevronRight size={14} />
