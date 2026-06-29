@@ -21,8 +21,27 @@ export const AGG_FIELDS = ['co2', 'pm1', 'pm25', 'pm4', 'pm10', 'temperature', '
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /* Fetch a date range by splitting it into IST-day sub-ranges fetched in
-   parallel batches. Each query keeps a small offset so Postgres never times
-   out. Returns { rows, sampled }. */
+   one global concurrency pool. Each query keeps a small (per-day) offset so
+   Postgres never times out, while flattening every page into a single pool
+   maximises parallelism (HTTP/2 multiplexes them). Returns { rows, sampled }. */
+
+// Run task-producing functions with at most `limit` in flight at once.
+async function runPool(taskFns, limit) {
+  const results = new Array(taskFns.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < taskFns.length) {
+      const i = next++;
+      results[i] = await taskFns[i]();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, taskFns.length) }, worker));
+  return results;
+}
+
+const FETCH_COLS = 'id, co2, pm1, pm25, pm4, pm10, temperature, humidity, created_at';
+const CONCURRENCY = 12;
+
 export async function fetchRangeByDays(since, until) {
   const startMs = new Date(since).getTime();
   const endMs   = new Date(until).getTime();
@@ -37,35 +56,45 @@ export async function fetchRangeByDays(since, until) {
   }
 
   const sampled = subRanges.length > 45;
-  const maxPagesPerDay = sampled ? 2 : 25;
-  const cols = 'id, co2, pm1, pm25, pm4, pm10, temperature, humidity, created_at';
 
-  const fetchDayChunk = async ([s, e]) => {
-    const out = [];
-    for (let p = 0; p < maxPagesPerDay; p++) {
-      const { data, error } = await supabase
+  // 1. Count rows per day (parallel) so we know exactly how many pages to fetch.
+  const counts = await runPool(
+    subRanges.map(([s, e]) => async () => {
+      const { count } = await supabase
         .from('air_quality')
-        .select(cols)
+        .select('id', { count: 'exact', head: true })
         .gte('created_at', s)
-        .lte('created_at', e)
-        .order('created_at', { ascending: true })
-        .range(p * 1000, p * 1000 + 999);
-      if (error) throw error;
-      if (!data || data.length === 0) break;
-      out.push(...data);
-      if (data.length < 1000) break;
-    }
-    return out;
-  };
+        .lte('created_at', e);
+      return count ?? 0;
+    }),
+    CONCURRENCY
+  );
 
-  const rows = [];
-  const CONCURRENCY = 6;
-  for (let i = 0; i < subRanges.length; i += CONCURRENCY) {
-    const batch = subRanges.slice(i, i + CONCURRENCY);
-    const res = await Promise.all(batch.map(fetchDayChunk));
-    res.forEach(r => rows.push(...r));
-  }
-  return { rows, sampled };
+  // 2. Build one flat list of page-fetch tasks across every day.
+  const tasks = [];
+  subRanges.forEach(([s, e], i) => {
+    const total = counts[i];
+    if (!total) return;
+    let pages = Math.ceil(total / 1000);
+    if (sampled) pages = Math.min(pages, 2);
+    for (let p = 0; p < pages; p++) {
+      tasks.push(async () => {
+        const { data, error } = await supabase
+          .from('air_quality')
+          .select(FETCH_COLS)
+          .gte('created_at', s)
+          .lte('created_at', e)
+          .order('created_at', { ascending: true })
+          .range(p * 1000, p * 1000 + 999);
+        if (error) throw error;
+        return data || [];
+      });
+    }
+  });
+
+  // 3. Run every page through the global pool, then flatten.
+  const pages = await runPool(tasks, CONCURRENCY);
+  return { rows: pages.flat(), sampled };
 }
 
 /* Bucket raw rows into IST-aligned hour/day averages, shaped exactly like the

@@ -28,13 +28,24 @@ function istMidnightUTC() {
   return midIST - IST_OFFSET_MS;
 }
 
-function todayISTString() {
-  const d = new Date(Date.now() + IST_OFFSET_MS);
+function istDateString(ms) {
+  const d = new Date(ms + IST_OFFSET_MS);
   const y = d.getUTCFullYear();
   const m = String(d.getUTCMonth() + 1).padStart(2, '0');
   const day = String(d.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
+
+function todayISTString() {
+  return istDateString(Date.now());
+}
+
+// n days before today (IST). Used for the 30-day default + 31-day retention bound.
+function daysAgoISTString(n) {
+  return istDateString(Date.now() - n * 86_400_000);
+}
+
+const RETENTION_DAYS = 31;   // Supabase auto-deletes rows older than this
 
 /* ─── chart data builders ─────────────────────────────────── */
 
@@ -96,7 +107,7 @@ export const LiveCharts = () => {
   const [mode,        setMode]        = useState('day');   // 'day' | 'custom'
   const [dayFromHour, setDayFromHour] = useState(0);
   const [dayToHour,   setDayToHour]   = useState(23);
-  const [customFrom,  setCustomFrom]  = useState(todayISTString);
+  const [customFrom,  setCustomFrom]  = useState(() => daysAgoISTString(29)); // last 30 days incl. today
   const [customTo,    setCustomTo]    = useState(todayISTString);
   const [rows,        setRows]        = useState([]);     // raw rows (day mode)
   const [buckets,     setBuckets]     = useState([]);     // aggregated buckets (custom mode)
@@ -344,6 +355,7 @@ export const LiveCharts = () => {
                 type="date"
                 className="lc-date-input"
                 value={customFrom}
+                min={daysAgoISTString(RETENTION_DAYS - 1)}
                 max={customTo}
                 onChange={e => setCustomFrom(e.target.value)}
               />
