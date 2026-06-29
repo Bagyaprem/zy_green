@@ -45,7 +45,7 @@ function daysAgoISTString(n) {
   return istDateString(Date.now() - n * 86_400_000);
 }
 
-const RETENTION_DAYS = 31;   // Supabase auto-deletes rows older than this
+const RETENTION_DAYS = 30;   // Supabase auto-deletes rows older than this
 
 /* ─── chart data builders ─────────────────────────────────── */
 
