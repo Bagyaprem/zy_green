@@ -96,6 +96,59 @@
   }
 }
 
+/* Picker row: hour selects or date inputs */
+.lc-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.lc-picker-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.lc-select {
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #1e293b;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.lc-select:focus {
+  border-color: #2196f3;
+}
+
+.lc-date-input {
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #1e293b;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.lc-date-input:focus {
+  border-color: #2196f3;
+}
+
+@media (max-width: 640px) {
+  .lc-picker-row {
+    justify-content: flex-start;
+  }
+}
+
 /* Footer row */
 .lc-footer {
   display: flex;

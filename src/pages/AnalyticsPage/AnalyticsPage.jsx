@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
-import { supabase } from '../../services/supabase';
+import { fetchBuckets } from '../../services/airQualityBuckets';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Leaf, ShieldAlert, Award } from 'lucide-react';
 import styles from './AnalyticsPage.module.scss';
@@ -13,45 +13,44 @@ export const AnalyticsPage = () => {
   useEffect(() => {
     const fetchMonthly = async () => {
       const since = new Date(Date.now() - 30 * 24 * 3_600_000).toISOString();
-      const { data, error } = await supabase
-        .from('air_quality')
-        .select('co2, pm1, pm25, pm4, pm10, created_at')
-        .gte('created_at', since)
-        .order('created_at', { ascending: true })
-        .limit(50000);
+      const until = new Date().toISOString();
 
-      if (error || !data) return;
+      // Daily averaging via the shared helper: uses the bucket_air_quality RPC
+      // when deployed, otherwise fetches the range per-day and averages locally.
+      // (The table logs every ~10s and PostgREST caps requests at 1000 rows.)
+      let data;
+      try {
+        ({ buckets: data } = await fetchBuckets(since, until, 'day'));
+      } catch {
+        return;
+      }
+      if (!data) return;
 
-      // Group by YYYY-MM-DD
+      // Index returned buckets by IST calendar day (YYYY-MM-DD)
       const byDay = {};
-      data.forEach(row => {
-        if (!row.created_at) return;
-        const key = new Date(row.created_at).toISOString().slice(0, 10);
-        if (!byDay[key]) byDay[key] = { co2: [], pm1: [], pm25: [], pm4: [], pm10: [] };
-        if (!isNaN(row.co2))          byDay[key].co2.push(row.co2);
-        if (!isNaN(Number(row.pm1)))  byDay[key].pm1.push(Number(row.pm1));
-        if (!isNaN(Number(row.pm25))) byDay[key].pm25.push(Number(row.pm25));
-        if (!isNaN(Number(row.pm4)))  byDay[key].pm4.push(Number(row.pm4));
-        if (!isNaN(Number(row.pm10))) byDay[key].pm10.push(Number(row.pm10));
+      data.forEach(b => {
+        if (!b.bucket) return;
+        const key = new Date(b.bucket).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        byDay[key] = b;
       });
 
-      const avg = arr => arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length * 10) / 10 : null;
+      const num = v => (v === null || v === undefined || isNaN(Number(v))) ? null : Math.round(Number(v) * 10) / 10;
 
       // Build full 30-day scaffold — null for missing days
       const scaffold = [];
       for (let i = 29; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        const key = d.toISOString().slice(0, 10);
-        const label = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+        const key = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        const label = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
         const entry = byDay[key];
         scaffold.push({
           name: label,
-          CO2:   entry ? avg(entry.co2)  : null,
-          PM1:   entry ? avg(entry.pm1)  : null,
-          PM2_5: entry ? avg(entry.pm25) : null,
-          PM4:   entry ? avg(entry.pm4)  : null,
-          PM10:  entry ? avg(entry.pm10) : null,
+          CO2:   entry ? num(entry.co2)  : null,
+          PM1:   entry ? num(entry.pm1)  : null,
+          PM2_5: entry ? num(entry.pm25) : null,
+          PM4:   entry ? num(entry.pm4)  : null,
+          PM10:  entry ? num(entry.pm10) : null,
         });
       }
 
