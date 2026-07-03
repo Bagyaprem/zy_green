@@ -3,7 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
-import { fetchRangeByDays, fetchBuckets } from '../../services/airQualityBuckets';
+import { fetchRangeByDays, fetchBuckets, AGG_FIELDS } from '../../services/airQualityBuckets';
 import { useAppStore } from '../../store/useAppStore';
 import './LiveCharts.css';
 
@@ -97,6 +97,37 @@ function buildCustomData(buckets, metricKey, isHourly) {
   });
 }
 
+// Keep only hourly buckets whose IST hour-of-day falls inside [fromHour, toHour].
+function inHourWindow(bucketIso, fromHour, toHour) {
+  const h = new Date(new Date(bucketIso).getTime() + IST_OFFSET_MS).getUTCHours();
+  return h >= fromHour && h <= toHour;
+}
+
+// Collapse IST-hour buckets into per-IST-day averages. Used when an hour-of-day
+// window is applied over a multi-day range, so each point is that day's average
+// across only the selected hours (letting you compare the same window day to day).
+function hourBucketsToDaily(buckets) {
+  const map = new Map();
+  for (const b of buckets) {
+    const ms = new Date(b.bucket).getTime();
+    if (isNaN(ms)) continue;
+    const dayKey = Math.floor((ms + IST_OFFSET_MS) / 86_400_000) * 86_400_000 - IST_OFFSET_MS;
+    let acc = map.get(dayKey);
+    if (!acc) { acc = { sum: {}, cnt: {} }; map.set(dayKey, acc); }
+    for (const f of AGG_FIELDS) {
+      const v = Number(b[f]);
+      if (b[f] != null && !isNaN(v)) { acc.sum[f] = (acc.sum[f] || 0) + v; acc.cnt[f] = (acc.cnt[f] || 0) + 1; }
+    }
+  }
+  return [...map.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([key, acc]) => {
+      const out = { bucket: new Date(key).toISOString() };
+      for (const f of AGG_FIELDS) out[f] = acc.cnt[f] ? Math.round((acc.sum[f] / acc.cnt[f]) * 10) / 10 : null;
+      return out;
+    });
+}
+
 function normalise(row, tsCol) {
   return { ...row, recorded_at: row[tsCol] || row.recorded_at || row.created_at };
 }
@@ -109,6 +140,8 @@ export const LiveCharts = () => {
   const [dayToHour,   setDayToHour]   = useState(23);
   const [customFrom,  setCustomFrom]  = useState(() => daysAgoISTString(29)); // last 30 days incl. today
   const [customTo,    setCustomTo]    = useState(todayISTString);
+  const [customFromHour, setCustomFromHour] = useState(0);   // hour-of-day window in custom mode
+  const [customToHour,   setCustomToHour]   = useState(23);
   const [rows,        setRows]        = useState([]);     // raw rows (day mode)
   const [buckets,     setBuckets]     = useState([]);     // aggregated buckets (custom mode)
   const [loading,     setLoading]     = useState(false);
@@ -118,8 +151,12 @@ export const LiveCharts = () => {
   const liveReading = useAppStore(state => state.liveReading);
   const prevLiveRef = useRef(null);
 
-  const isHourly = mode === 'custom' &&
-    (new Date(`${customTo}T00:00:00+05:30`) - new Date(`${customFrom}T00:00:00+05:30`)) <= 3 * 24 * 3600 * 1000;
+  // Range span & whether an hour-of-day window is active in custom mode.
+  const rangeMs     = new Date(`${customTo}T23:59:59+05:30`) - new Date(`${customFrom}T00:00:00+05:30`);
+  const rangeShort  = rangeMs <= 3 * 24 * 3600 * 1000;
+  const hourFiltered = customFromHour !== 0 || customToHour !== 23;
+  // Short ranges plot hourly points; long ranges plot one point per day.
+  const displayHourly = mode === 'custom' && rangeShort;
 
   /* ── DAY MODE fetch: full day of raw readings (paginated past the 1000 cap)
         so the hour selector works across the whole day. Live append continues. ── */
@@ -145,10 +182,14 @@ export const LiveCharts = () => {
     setNotice(null);
     const since  = new Date(`${customFrom}T00:00:00+05:30`).toISOString();
     const until  = new Date(`${customTo}T23:59:59+05:30`).toISOString();
-    const hourly = (new Date(until) - new Date(since)) <= 3 * 24 * 3600 * 1000;
+    const span   = new Date(until) - new Date(since);
+    const filterHours = customFromHour !== 0 || customToHour !== 23;
+    // Fetch hourly buckets for short ranges OR whenever an hour window is set
+    // (we need hourly resolution to filter by hour-of-day, then collapse to days).
+    const gran = (span <= 3 * 24 * 3600 * 1000 || filterHours) ? 'hour' : 'day';
 
     try {
-      const { buckets: b, sampled } = await fetchBuckets(since, until, hourly ? 'hour' : 'day');
+      const { buckets: b, sampled } = await fetchBuckets(since, until, gran);
       setBuckets(b);
       if (sampled) {
         setNotice('Long range — showing a daily sample. Run supabase_bucket_function.sql in Supabase for exact averages.');
@@ -158,7 +199,7 @@ export const LiveCharts = () => {
       setFetchErr(e?.message || 'Could not load range');
     }
     setLoading(false);
-  }, [customFrom, customTo]);
+  }, [customFrom, customTo, customFromHour, customToHour]);
 
   const fetchData = useCallback(() => {
     return mode === 'day' ? fetchDay() : fetchCustom();
@@ -201,8 +242,14 @@ export const LiveCharts = () => {
       }
       return buildDayData(chartRows, metric, dayFromHour, dayToHour);
     }
-    return buildCustomData(buckets, metric, isHourly);
-  }, [rows, buckets, mode, metric, dayFromHour, dayToHour, isHourly, liveReading]);
+    // custom mode
+    let bk = buckets;
+    if (hourFiltered) bk = bk.filter(b => inHourWindow(b.bucket, customFromHour, customToHour));
+    // Long range + hour window: collapse the kept hours into per-day averages.
+    if (!rangeShort && hourFiltered) bk = hourBucketsToDaily(bk);
+    return buildCustomData(bk, metric, displayHourly);
+  }, [rows, buckets, mode, metric, dayFromHour, dayToHour, displayHourly,
+      rangeShort, hourFiltered, customFromHour, customToHour, liveReading]);
 
   const mcfg = METRICS[metric];
 
@@ -272,18 +319,19 @@ export const LiveCharts = () => {
   };
 
   const pointCount  = data.filter(d => d.value !== null).length;
-  const isMultiDay  = mode === 'custom' && !isHourly;
+  const isMultiDay  = mode === 'custom' && !displayHourly;
+  const hourWindowLabel = `${String(customFromHour).padStart(2,'0')}:00–${String(customToHour).padStart(2,'0')}:59`;
   const xInterval   = Math.max(0, Math.floor(pointCount / 10) - 1);
   const xAngle      = -45;
   const xHeight     = 48;
 
   const headerLabel = mode === 'day'
     ? `Today  ${String(dayFromHour).padStart(2,'0')}:00 – ${String(dayToHour).padStart(2,'0')}:59  IST`
-    : `${customFrom}  →  ${customTo}`;
+    : `${customFrom}  →  ${customTo}${hourFiltered ? `  ·  ${hourWindowLabel} IST` : ''}`;
 
   const footerLeft = mode === 'day'
     ? `Today ${String(dayFromHour).padStart(2,'0')}:00–${String(dayToHour).padStart(2,'0')}:59 IST · ${pointCount} pts`
-    : `${customFrom} → ${customTo} · ${pointCount} pts · ${isMultiDay ? 'daily avg' : 'hourly avg'}`;
+    : `${customFrom} → ${customTo}${hourFiltered ? ` · ${hourWindowLabel} IST` : ''} · ${pointCount} pts · ${isMultiDay ? 'daily avg' : 'hourly avg'}`;
 
   const footerRight = mode === 'day'
     ? '● Live — updates on new reading'
@@ -368,6 +416,36 @@ export const LiveCharts = () => {
                 max={todayISTString()}
                 onChange={e => setCustomTo(e.target.value)}
               />
+            </div>
+          )}
+
+          {/* Custom mode: hour-of-day window (applied across the whole date range) */}
+          {mode === 'custom' && (
+            <div className="lc-picker-row">
+              <span className="lc-picker-label">Hrs</span>
+              <select
+                className="lc-select"
+                value={customFromHour}
+                onChange={e => {
+                  const v = Number(e.target.value);
+                  setCustomFromHour(v);
+                  if (customToHour < v) setCustomToHour(v);
+                }}
+              >
+                {HOURS.map(h => (
+                  <option key={h} value={h}>{String(h).padStart(2,'0')}:00</option>
+                ))}
+              </select>
+              <span className="lc-picker-label">To</span>
+              <select
+                className="lc-select"
+                value={customToHour}
+                onChange={e => setCustomToHour(Number(e.target.value))}
+              >
+                {HOURS.filter(h => h >= customFromHour).map(h => (
+                  <option key={h} value={h}>{String(h).padStart(2,'0')}:59</option>
+                ))}
+              </select>
             </div>
           )}
 
