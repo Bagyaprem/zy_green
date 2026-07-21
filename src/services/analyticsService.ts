@@ -97,4 +97,31 @@ export const analyticsService = {
     await wait(appConfig.mockLatency.fast);
     return [...devices].sort((a, b) => b.health - a.health).slice(0, limit);
   },
+
+  /** Fleet-wide average trend for the dashboard overview chart (averages a representative sample of devices). */
+  async getFleetTrend(
+    parameter: SensorParameter,
+    timeRange: '1H' | '24H' | '7D' | '30D' | 'CUSTOM',
+    custom?: { from: string; to: string }
+  ): Promise<TrendPoint[]> {
+    await wait();
+    const { from, to } = rangeFromTimeFilter(timeRange, custom);
+    const points = timeRange === '1H' ? 30 : timeRange === '24H' ? 48 : timeRange === '7D' ? 56 : timeRange === '30D' ? 60 : 48;
+    const sample = devices.slice(0, 10);
+    const allSeries = sample.map((d) => generateTrendSeries(d.id, parameter, from, to, points));
+    return allSeries[0].map((point, i) => ({
+      timestamp: point.timestamp,
+      value: Number((allSeries.reduce((sum, s) => sum + s[i].value, 0) / allSeries.length).toFixed(2)),
+    }));
+  },
+
+  async getFleetSummary(
+    parameter: SensorParameter,
+    timeRange: '1H' | '24H' | '7D' | '30D' | 'CUSTOM',
+    custom?: { from: string; to: string }
+  ): Promise<AnalyticsSummary> {
+    const meta = sensorMeta.find((m) => m.key === parameter);
+    const series = await this.getFleetTrend(parameter, timeRange, custom);
+    return summarize(series, meta?.unit ?? '');
+  },
 };
