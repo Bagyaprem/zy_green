@@ -1,0 +1,58 @@
+[
+  {
+    "role": "Super Admin",
+    "description": "Full platform access across all customers, devices, and system settings. Can manage billing, API keys, and firmware rollouts.",
+    "permissions": [
+      { "key": "devices.manage", "label": "Manage devices (create/edit/delete/restart)", "allowed": true },
+      { "key": "customers.manage", "label": "Manage customers & credentials", "allowed": true },
+      { "key": "users.manage", "label": "Manage users & roles", "allowed": true },
+      { "key": "firmware.deploy", "label": "Deploy & rollback firmware", "allowed": true },
+      { "key": "settings.manage", "label": "Modify system settings", "allowed": true },
+      { "key": "reports.generate", "label": "Generate & export reports", "allowed": true },
+      { "key": "alerts.manage", "label": "Acknowledge & resolve alerts", "allowed": true },
+      { "key": "logs.view", "label": "View activity logs", "allowed": true }
+    ]
+  },
+  {
+    "role": "Admin",
+    "description": "Manages devices, customers, and users for their assigned scope. Cannot modify global system settings or API keys.",
+    "permissions": [
+      { "key": "devices.manage", "label": "Manage devices (create/edit/delete/restart)", "allowed": true },
+      { "key": "customers.manage", "label": "Manage customers & credentials", "allowed": true },
+      { "key": "users.manage", "label": "Manage users & roles", "allowed": true },
+      { "key": "firmware.deploy", "label": "Deploy & rollback firmware", "allowed": true },
+      { "key": "settings.manage", "label": "Modify system settings", "allowed": false },
+      { "key": "reports.generate", "label": "Generate & export reports", "allowed": true },
+      { "key": "alerts.manage", "label": "Acknowledge & resolve alerts", "allowed": true },
+      { "key": "logs.view", "label": "View activity logs", "allowed": true }
+    ]
+  },
+  {
+    "role": "Operator",
+    "description": "Day-to-day monitoring and response. Can acknowledge alerts and restart devices, but cannot delete records or manage users.",
+    "permissions": [
+      { "key": "devices.manage", "label": "Manage devices (create/edit/delete/restart)", "allowed": false },
+      { "key": "customers.manage", "label": "Manage customers & credentials", "allowed": false },
+      { "key": "users.manage", "label": "Manage users & roles", "allowed": false },
+      { "key": "firmware.deploy", "label": "Deploy & rollback firmware", "allowed": false },
+      { "key": "settings.manage", "label": "Modify system settings", "allowed": false },
+      { "key": "reports.generate", "label": "Generate & export reports", "allowed": true },
+      { "key": "alerts.manage", "label": "Acknowledge & resolve alerts", "allowed": true },
+      { "key": "logs.view", "label": "View activity logs", "allowed": true }
+    ]
+  },
+  {
+    "role": "Viewer",
+    "description": "Read-only access to dashboards, analytics, and reports. Cannot make any changes to devices, users, or settings.",
+    "permissions": [
+      { "key": "devices.manage", "label": "Manage devices (create/edit/delete/restart)", "allowed": false },
+      { "key": "customers.manage", "label": "Manage customers & credentials", "allowed": false },
+      { "key": "users.manage", "label": "Manage users & roles", "allowed": false },
+      { "key": "firmware.deploy", "label": "Deploy & rollback firmware", "allowed": false },
+      { "key": "settings.manage", "label": "Modify system settings", "allowed": false },
+      { "key": "reports.generate", "label": "Generate & export reports", "allowed": false },
+      { "key": "alerts.manage", "label": "Acknowledge & resolve alerts", "allowed": false },
+      { "key": "logs.view", "label": "View activity logs", "allowed": true }
+    ]
+  }
+]
