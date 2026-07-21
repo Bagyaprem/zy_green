@@ -1,0 +1,92 @@
+[
+  {
+    "id": "NTF-001",
+    "title": "Device Alert",
+    "message": "Temperature Out of Range (847 C) on Conference Room Monitor",
+    "severity": "Low",
+    "read": false,
+    "createdAt": "2026-07-20T21:34:25.409Z",
+    "link": "/alerts"
+  },
+  {
+    "id": "NTF-002",
+    "title": "Device Alert",
+    "message": "WiFi Signal Weak on Office - 1st Floor Monitor",
+    "severity": "Low",
+    "read": true,
+    "createdAt": "2026-07-20T07:12:25.409Z",
+    "link": "/alerts"
+  },
+  {
+    "id": "NTF-003",
+    "title": "Device Alert",
+    "message": "Temperature Out of Range (757 C) on Loading Dock Monitor",
+    "severity": "Medium",
+    "read": true,
+    "createdAt": "2026-07-20T00:17:25.409Z",
+    "link": "/alerts"
+  },
+  {
+    "id": "NTF-004",
+    "title": "Critical Alert",
+    "message": "High AQI Detected (AQI: 547) on Quality Control Lab Monitor",
+    "severity": "High",
+    "read": false,
+    "createdAt": "2026-07-19T13:17:25.409Z",
+    "link": "/alerts"
+  },
+  {
+    "id": "NTF-005",
+    "title": "Device Alert",
+    "message": "Elevated TVOC Reading (1099 ppm) on R&D Lab Monitor",
+    "severity": "Low",
+    "read": true,
+    "createdAt": "2026-07-19T07:47:25.409Z",
+    "link": "/alerts"
+  },
+  {
+    "id": "NTF-006",
+    "title": "Device Alert",
+    "message": "High PM2.5 Detected (PM2.5: 1061) on Reception Monitor",
+    "severity": "Medium",
+    "read": false,
+    "createdAt": "2026-07-19T04:17:25.409Z",
+    "link": "/alerts"
+  },
+  {
+    "id": "NTF-007",
+    "title": "Device Alert",
+    "message": "WiFi Signal Weak on Assembly Line Monitor",
+    "severity": "Low",
+    "read": true,
+    "createdAt": "2026-07-19T01:19:25.409Z",
+    "link": "/alerts"
+  },
+  {
+    "id": "NTF-008",
+    "title": "Device Alert",
+    "message": "CO2 Level High (CO2: 727 ppm) on Production Unit Monitor",
+    "severity": "Medium",
+    "read": false,
+    "createdAt": "2026-07-18T15:24:25.409Z",
+    "link": "/alerts"
+  },
+  {
+    "id": "NTF-009",
+    "title": "Device Alert",
+    "message": "Humidity Anomaly Detected (876%) on Maintenance Shed Monitor",
+    "severity": "Medium",
+    "read": true,
+    "createdAt": "2026-07-18T13:58:25.409Z",
+    "link": "/alerts"
+  },
+  {
+    "id": "NTF-010",
+    "title": "Device Alert",
+    "message": "Filter Replacement Due on Quality Control Lab Monitor",
+    "severity": "Medium",
+    "read": true,
+    "createdAt": "2026-07-18T10:34:25.409Z",
+    "link": "/alerts"
+  }
+]

@@ -1,0 +1,372 @@
+{
+  "scanPool": [
+    {
+      "ssid": "Factory_Main_5G",
+      "secure": true,
+      "frequencyGHz": 5
+    },
+    {
+      "ssid": "Factory_IoT_2G",
+      "secure": true,
+      "frequencyGHz": 2.4
+    },
+    {
+      "ssid": "Office_Guest",
+      "secure": false,
+      "frequencyGHz": 2.4
+    },
+    {
+      "ssid": "Warehouse_Ops",
+      "secure": true,
+      "frequencyGHz": 2.4
+    },
+    {
+      "ssid": "ZYGREEN_Provision",
+      "secure": true,
+      "frequencyGHz": 2.4
+    },
+    {
+      "ssid": "Plant_Network_A",
+      "secure": true,
+      "frequencyGHz": 5
+    }
+  ],
+  "configs": [
+    {
+      "deviceId": "ZYG-AP-001",
+      "ssid": "Mumbai_IoT_1",
+      "connected": true,
+      "ipAddress": "192.168.7.134",
+      "signal": 92,
+      "lastConnectedAt": "2026-07-21T05:05:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-002",
+      "ssid": "Bangalore_IoT_2",
+      "connected": true,
+      "ipAddress": "192.168.16.227",
+      "signal": 64,
+      "lastConnectedAt": "2026-07-21T06:41:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-003",
+      "ssid": "Bangalore_IoT_4",
+      "connected": true,
+      "ipAddress": "192.168.10.112",
+      "signal": 81,
+      "lastConnectedAt": "2026-07-21T09:59:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-004",
+      "ssid": "Delhi_IoT_2",
+      "connected": false,
+      "ipAddress": "192.168.4.139",
+      "signal": 0,
+      "lastConnectedAt": null
+    },
+    {
+      "deviceId": "ZYG-AP-005",
+      "ssid": "Chennai_IoT_2",
+      "connected": true,
+      "ipAddress": "192.168.6.68",
+      "signal": 75,
+      "lastConnectedAt": "2026-07-21T08:47:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-006",
+      "ssid": "Delhi_IoT_4",
+      "connected": true,
+      "ipAddress": "192.168.10.191",
+      "signal": 76,
+      "lastConnectedAt": "2026-07-21T05:33:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-007",
+      "ssid": "Bangalore_IoT_3",
+      "connected": true,
+      "ipAddress": "192.168.3.2",
+      "signal": 66,
+      "lastConnectedAt": "2026-07-21T09:56:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-008",
+      "ssid": "Bangalore_IoT_1",
+      "connected": false,
+      "ipAddress": "192.168.11.227",
+      "signal": 70,
+      "lastConnectedAt": "2026-07-21T05:19:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-009",
+      "ssid": "Bangalore_IoT_3",
+      "connected": false,
+      "ipAddress": "192.168.19.118",
+      "signal": 74,
+      "lastConnectedAt": "2026-07-21T07:53:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-010",
+      "ssid": "Chennai_IoT_2",
+      "connected": true,
+      "ipAddress": "192.168.1.50",
+      "signal": 85,
+      "lastConnectedAt": "2026-07-21T05:18:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-011",
+      "ssid": "Mumbai_IoT_2",
+      "connected": false,
+      "ipAddress": "192.168.10.143",
+      "signal": 0,
+      "lastConnectedAt": null
+    },
+    {
+      "deviceId": "ZYG-AP-012",
+      "ssid": "Ahmedabad_IoT_4",
+      "connected": false,
+      "ipAddress": "192.168.3.55",
+      "signal": 0,
+      "lastConnectedAt": null
+    },
+    {
+      "deviceId": "ZYG-AP-013",
+      "ssid": "Hyderabad_IoT_2",
+      "connected": false,
+      "ipAddress": "192.168.1.230",
+      "signal": 62,
+      "lastConnectedAt": "2026-07-21T08:45:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-014",
+      "ssid": "Bangalore_IoT_3",
+      "connected": false,
+      "ipAddress": "192.168.14.160",
+      "signal": 0,
+      "lastConnectedAt": null
+    },
+    {
+      "deviceId": "ZYG-AP-015",
+      "ssid": "Chennai_IoT_3",
+      "connected": true,
+      "ipAddress": "192.168.1.210",
+      "signal": 74,
+      "lastConnectedAt": "2026-07-21T07:23:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-016",
+      "ssid": "Pune_IoT_1",
+      "connected": true,
+      "ipAddress": "192.168.13.105",
+      "signal": 93,
+      "lastConnectedAt": "2026-07-21T07:17:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-017",
+      "ssid": "Pune_IoT_3",
+      "connected": true,
+      "ipAddress": "192.168.14.3",
+      "signal": 57,
+      "lastConnectedAt": "2026-07-21T07:22:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-018",
+      "ssid": "Chennai_IoT_3",
+      "connected": false,
+      "ipAddress": "192.168.12.3",
+      "signal": 71,
+      "lastConnectedAt": "2026-07-21T03:59:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-019",
+      "ssid": "Hyderabad_IoT_3",
+      "connected": true,
+      "ipAddress": "192.168.14.127",
+      "signal": 71,
+      "lastConnectedAt": "2026-07-21T05:32:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-020",
+      "ssid": "Ahmedabad_IoT_1",
+      "connected": true,
+      "ipAddress": "192.168.18.73",
+      "signal": 76,
+      "lastConnectedAt": "2026-07-21T03:38:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-021",
+      "ssid": "Chennai_IoT_1",
+      "connected": true,
+      "ipAddress": "192.168.20.7",
+      "signal": 84,
+      "lastConnectedAt": "2026-07-21T06:09:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-022",
+      "ssid": "Hyderabad_IoT_1",
+      "connected": false,
+      "ipAddress": "192.168.2.88",
+      "signal": 0,
+      "lastConnectedAt": null
+    },
+    {
+      "deviceId": "ZYG-AP-023",
+      "ssid": "Hyderabad_IoT_1",
+      "connected": true,
+      "ipAddress": "192.168.9.233",
+      "signal": 48,
+      "lastConnectedAt": "2026-07-21T05:07:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-024",
+      "ssid": "Ahmedabad_IoT_3",
+      "connected": true,
+      "ipAddress": "192.168.8.68",
+      "signal": 78,
+      "lastConnectedAt": "2026-07-21T04:51:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-025",
+      "ssid": "Coimbatore_IoT_3",
+      "connected": false,
+      "ipAddress": "192.168.16.155",
+      "signal": 0,
+      "lastConnectedAt": null
+    },
+    {
+      "deviceId": "ZYG-AP-026",
+      "ssid": "Bangalore_IoT_3",
+      "connected": true,
+      "ipAddress": "192.168.4.194",
+      "signal": 54,
+      "lastConnectedAt": "2026-07-21T02:41:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-027",
+      "ssid": "Pune_IoT_1",
+      "connected": false,
+      "ipAddress": "192.168.6.150",
+      "signal": 45,
+      "lastConnectedAt": "2026-07-21T06:27:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-028",
+      "ssid": "Chennai_IoT_1",
+      "connected": true,
+      "ipAddress": "192.168.11.145",
+      "signal": 81,
+      "lastConnectedAt": "2026-07-21T05:14:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-029",
+      "ssid": "Ahmedabad_IoT_1",
+      "connected": false,
+      "ipAddress": "192.168.4.115",
+      "signal": 0,
+      "lastConnectedAt": null
+    },
+    {
+      "deviceId": "ZYG-AP-030",
+      "ssid": "Chennai_IoT_2",
+      "connected": false,
+      "ipAddress": "192.168.19.93",
+      "signal": 0,
+      "lastConnectedAt": null
+    },
+    {
+      "deviceId": "ZYG-AP-031",
+      "ssid": "Delhi_IoT_3",
+      "connected": false,
+      "ipAddress": "192.168.3.109",
+      "signal": 99,
+      "lastConnectedAt": "2026-07-21T07:29:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-032",
+      "ssid": "Pune_IoT_2",
+      "connected": true,
+      "ipAddress": "192.168.6.22",
+      "signal": 100,
+      "lastConnectedAt": "2026-07-21T09:19:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-033",
+      "ssid": "Bangalore_IoT_3",
+      "connected": true,
+      "ipAddress": "192.168.6.73",
+      "signal": 69,
+      "lastConnectedAt": "2026-07-21T04:59:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-034",
+      "ssid": "Ahmedabad_IoT_3",
+      "connected": true,
+      "ipAddress": "192.168.1.234",
+      "signal": 52,
+      "lastConnectedAt": "2026-07-21T09:34:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-035",
+      "ssid": "Bangalore_IoT_3",
+      "connected": true,
+      "ipAddress": "192.168.12.114",
+      "signal": 83,
+      "lastConnectedAt": "2026-07-21T06:11:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-036",
+      "ssid": "Coimbatore_IoT_4",
+      "connected": true,
+      "ipAddress": "192.168.12.7",
+      "signal": 90,
+      "lastConnectedAt": "2026-07-21T08:00:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-037",
+      "ssid": "Mumbai_IoT_3",
+      "connected": false,
+      "ipAddress": "192.168.17.129",
+      "signal": 0,
+      "lastConnectedAt": null
+    },
+    {
+      "deviceId": "ZYG-AP-038",
+      "ssid": "Hyderabad_IoT_1",
+      "connected": true,
+      "ipAddress": "192.168.5.216",
+      "signal": 97,
+      "lastConnectedAt": "2026-07-21T06:53:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-039",
+      "ssid": "Ahmedabad_IoT_3",
+      "connected": false,
+      "ipAddress": "192.168.11.60",
+      "signal": 57,
+      "lastConnectedAt": "2026-07-21T05:47:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-040",
+      "ssid": "Ahmedabad_IoT_2",
+      "connected": true,
+      "ipAddress": "192.168.19.17",
+      "signal": 69,
+      "lastConnectedAt": "2026-07-21T05:02:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-041",
+      "ssid": "Chennai_IoT_2",
+      "connected": true,
+      "ipAddress": "192.168.14.209",
+      "signal": 63,
+      "lastConnectedAt": "2026-07-21T03:03:25.451Z"
+    },
+    {
+      "deviceId": "ZYG-AP-042",
+      "ssid": "Mumbai_IoT_3",
+      "connected": true,
+      "ipAddress": "192.168.4.71",
+      "signal": 95,
+      "lastConnectedAt": "2026-07-21T02:27:25.451Z"
+    }
+  ]
+}
