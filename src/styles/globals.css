@@ -4,7 +4,10 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
+    /* Pure white page background (was a pale-blue-tinted #F8FAFC). Cards are
+       also white, so card boundaries rely on --border + shadow-card below
+       rather than a background/card color difference. */
+    --background: 0 0% 100%;
     --foreground: 221 39% 11%;
 
     --card: 0 0% 100%;
@@ -34,10 +37,13 @@
 
     --radius: 1rem;
 
-    --sidebar: 160 54% 12%;
-    --sidebar-foreground: 150 20% 88%;
-    --sidebar-active: 158 45% 20%;
-    --sidebar-border: 160 40% 20%;
+    /* Sidebar: unmistakably green (deep forest green), not near-black.
+       --sidebar-active reuses the brand primary green as a brighter
+       highlight for the active/hover nav item against the deeper base. */
+    --sidebar: 125 55% 24%;
+    --sidebar-foreground: 150 30% 93%;
+    --sidebar-active: 123 46% 34%;
+    --sidebar-border: 125 40% 32%;
 
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
@@ -79,10 +85,13 @@
     --input: 217 22% 22%;
     --ring: 123 40% 46%;
 
-    --sidebar: 160 46% 8%;
-    --sidebar-foreground: 150 20% 85%;
-    --sidebar-active: 158 40% 16%;
-    --sidebar-border: 160 30% 16%;
+    /* Dark-theme sidebar stays clearly green too (deeper than the light
+       sidebar, brighter primary-tinted highlight for the active item) so it
+       doesn't collapse back into a near-black chrome color at night. */
+    --sidebar: 125 42% 13%;
+    --sidebar-foreground: 150 25% 90%;
+    --sidebar-active: 123 40% 30%;
+    --sidebar-border: 125 32% 22%;
 
     --success: 142 65% 45%;
     --success-foreground: 0 0% 100%;

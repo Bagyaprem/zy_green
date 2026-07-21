@@ -79,7 +79,10 @@ const config: Config = {
         '2xl': 'calc(var(--radius) + 8px)',
       },
       boxShadow: {
-        card: '0 1px 2px 0 rgb(0 0 0 / 0.04), 0 1px 3px 0 rgb(0 0 0 / 0.06)',
+        // Slightly stronger than a typical "card on tinted background" shadow
+        // since the page background is now pure white too (same as cards) —
+        // border + this shadow are what defines each card's edge.
+        card: '0 1px 2px 0 rgb(0 0 0 / 0.05), 0 2px 6px -1px rgb(0 0 0 / 0.08)',
         soft: '0 4px 16px -4px rgb(0 0 0 / 0.08)',
         popover: '0 8px 30px -6px rgb(0 0 0 / 0.15)',
       },
