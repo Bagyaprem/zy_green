@@ -8,8 +8,9 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { authService } from '@/services/authService';
+import { authService, DEV_LOGIN_EMAIL, DEV_LOGIN_PASSWORD } from '@/services/authService';
 import { useAuth } from '@/hooks/useAuth';
+import { environment } from '@/config/environment';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email address'),
@@ -41,6 +42,11 @@ export function LoginPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Login failed');
     }
+  };
+
+  const fillDevCredentials = () => {
+    form.setValue('email', DEV_LOGIN_EMAIL, { shouldValidate: true });
+    form.setValue('password', DEV_LOGIN_PASSWORD, { shouldValidate: true });
   };
 
   return (
@@ -98,10 +104,27 @@ export function LoginPage() {
                 {form.formState.isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 Sign in
               </Button>
-              <p className="text-center text-[11px] text-muted-foreground">
-                Sign-in uses Supabase Auth. Until a real project is configured
-                (see .env.example), sign-in attempts will fail — that&apos;s expected.
-              </p>
+              {environment.isSupabaseConfigured ? (
+                <p className="text-center text-[11px] text-muted-foreground">
+                  Sign-in uses Supabase Auth.
+                </p>
+              ) : (
+                <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-center text-xs text-muted-foreground">
+                  <p>
+                    No Supabase project connected yet — use the temporary dev login:
+                  </p>
+                  <p className="mt-1 font-mono text-[11px] text-foreground">
+                    {DEV_LOGIN_EMAIL} / {DEV_LOGIN_PASSWORD}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={fillDevCredentials}
+                    className="mt-2 font-medium text-primary hover:underline"
+                  >
+                    Fill dev credentials
+                  </button>
+                </div>
+              )}
             </form>
           </Form>
         </div>
