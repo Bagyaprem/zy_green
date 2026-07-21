@@ -16,7 +16,8 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { buildDeviceColumns } from '@/features/devices/deviceColumns';
 import { AddDeviceDialog } from '@/features/devices/AddDeviceDialog';
 import { EditDeviceDialog } from '@/features/devices/EditDeviceDialog';
-import { exportToCsv, exportToPdfPlaceholder } from '@/utils/csv';
+import { exportToCsv } from '@/utils/csv';
+import { exportToPdf } from '@/utils/pdf';
 import { formatDateTime } from '@/utils/format';
 import { DEVICE_STATUS_OPTIONS } from '@/constants/options';
 import type { Device } from '@/types';
@@ -86,14 +87,17 @@ export function DevicesPage() {
 
   const handleExportPdf = () => {
     if (!devicesQuery.data?.length) return;
-    exportToPdfPlaceholder(
+    exportToPdf(
       'zygreen-devices',
       'ZYGREEN Device Report',
       devicesQuery.data.map((d) => ({
-        DeviceID: d.id,
+        'Device ID': d.id,
         Name: d.name,
         Customer: d.customerName,
+        Location: d.location,
+        Firmware: d.firmwareVersion,
         Status: d.status,
+        'Last Sync': formatDateTime(d.lastSync),
       }))
     );
     toast.success('Devices exported as PDF');
