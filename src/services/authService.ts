@@ -1,44 +1,56 @@
 import type { AuthenticatedUser, LoginInput } from '@/types';
-import { wait } from '@/utils/latency';
-import { appConfig } from '@/config/config';
+import { supabase, assertSupabaseConfigured } from './supabaseClient';
+import type { Session } from '@supabase/supabase-js';
 
-const STORAGE_KEY = 'zygreen_admin_session';
+const avatarColors = ['#2E7D32', '#3B82F6', '#F59E0B', '#8B5CF6', '#EF4444', '#0EA5E9', '#EC4899'];
 
-const DEMO_USER: AuthenticatedUser = {
-  id: 'USR-001',
-  name: 'Aarav Menon',
-  email: 'admin@zygreen.io',
-  role: 'Super Admin',
-  avatarColor: '#2E7D32',
-};
+async function mapSessionToUser(session: Session | null): Promise<AuthenticatedUser | null> {
+  if (!session?.user) return null;
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', session.user.id)
+    .maybeSingle();
+
+  return {
+    id: session.user.id,
+    name: profile?.name ?? session.user.email?.split('@')[0] ?? 'User',
+    email: session.user.email ?? '',
+    role: profile?.role ?? 'Viewer',
+    avatarColor: profile?.avatar_color ?? avatarColors[0],
+  };
+}
 
 export const authService = {
   async login(input: LoginInput): Promise<AuthenticatedUser> {
-    await wait(appConfig.mockLatency.slow);
-    if (!input.email || !input.password || input.password.length < 4) {
-      throw new Error('Invalid email or password');
-    }
-    const user: AuthenticatedUser = { ...DEMO_USER, email: input.email };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    assertSupabaseConfigured();
+    const { data, error } = await supabase.auth.signInWithPassword({ email: input.email, password: input.password });
+    if (error) throw error;
+    const user = await mapSessionToUser(data.session);
+    if (!user) throw new Error('Login succeeded but no user session was returned.');
     return user;
   },
 
   async logout(): Promise<void> {
-    await wait(appConfig.mockLatency.fast);
-    localStorage.removeItem(STORAGE_KEY);
+    assertSupabaseConfigured();
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   },
 
-  getCurrentUser(): AuthenticatedUser | null {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw) as AuthenticatedUser;
-    } catch {
-      return null;
-    }
+  /** Resolves the current session (if any) into an AuthenticatedUser. Async because a real Supabase session lookup is async. */
+  async getCurrentUser(): Promise<AuthenticatedUser | null> {
+    assertSupabaseConfigured();
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    return mapSessionToUser(data.session);
   },
 
-  isAuthenticated(): boolean {
-    return !!this.getCurrentUser();
+  /** Subscribes to Supabase auth state changes; returns an unsubscribe function. */
+  onAuthStateChange(callback: (user: AuthenticatedUser | null) => void): () => void {
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      void mapSessionToUser(session).then(callback);
+    });
+    return () => data.subscription.unsubscribe();
   },
 };

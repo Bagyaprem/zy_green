@@ -4,14 +4,7 @@ export const appConfig = {
   companyName: 'ZYGREEN Technologies',
   supportEmail: 'support@zygreen.io',
 
-  // Simulated network latency for mock services, in milliseconds.
-  mockLatency: {
-    fast: 250,
-    normal: 500,
-    slow: 900,
-  },
-
-  // Live-monitoring / sparkline refresh interval.
+  // Live-monitoring / sparkline refresh interval (real Supabase poll cadence).
   liveRefreshIntervalMs: 4000,
 
   pagination: {

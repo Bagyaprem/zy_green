@@ -1,9 +1,5 @@
-import alertsData from '@/mock/alerts.json';
+import { supabase, assertSupabaseConfigured } from './supabaseClient';
 import type { AlertStatus, DeviceAlert } from '@/types';
-import { wait } from '@/utils/latency';
-import { appConfig } from '@/config/config';
-
-let alerts: DeviceAlert[] = JSON.parse(JSON.stringify(alertsData)) as DeviceAlert[];
 
 export interface AlertFilters {
   severity?: string;
@@ -13,52 +9,91 @@ export interface AlertFilters {
   deviceId?: string;
 }
 
+interface AlertRow {
+  id: string;
+  device_id: string;
+  message: string;
+  severity: DeviceAlert['severity'];
+  status: DeviceAlert['status'];
+  parameter: string | null;
+  value: number | null;
+  threshold: number | null;
+  created_at: string;
+  resolved_at: string | null;
+  devices?: { name: string; customer_name: string | null } | null;
+}
+
+function mapAlert(row: AlertRow): DeviceAlert {
+  return {
+    id: row.id,
+    deviceId: row.device_id,
+    deviceName: row.devices?.name ?? row.device_id,
+    customerName: row.devices?.customer_name ?? '',
+    message: row.message,
+    severity: row.severity,
+    status: row.status,
+    parameter: row.parameter ?? '',
+    value: row.value,
+    threshold: row.threshold,
+    createdAt: row.created_at,
+    resolvedAt: row.resolved_at,
+  };
+}
+
+const ALERT_SELECT = '*, devices(name, customer_name)';
+
 export const alertService = {
   async getAlerts(filters?: AlertFilters): Promise<DeviceAlert[]> {
-    await wait();
-    let result = alerts;
-    if (filters?.severity && filters.severity !== 'all') {
-      result = result.filter((a) => a.severity === filters.severity);
-    }
-    if (filters?.status && filters.status !== 'all') {
-      result = result.filter((a) => a.status === filters.status);
-    }
-    if (filters?.deviceId) {
-      result = result.filter((a) => a.deviceId === filters.deviceId);
-    }
-    if (filters?.from) {
-      result = result.filter((a) => new Date(a.createdAt) >= new Date(filters.from as string));
-    }
-    if (filters?.to) {
-      result = result.filter((a) => new Date(a.createdAt) <= new Date(filters.to as string));
-    }
-    return [...result].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    assertSupabaseConfigured();
+    let query = supabase.from('alerts').select(ALERT_SELECT).order('created_at', { ascending: false });
+
+    if (filters?.severity && filters.severity !== 'all') query = query.eq('severity', filters.severity);
+    if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status);
+    if (filters?.deviceId) query = query.eq('device_id', filters.deviceId);
+    if (filters?.from) query = query.gte('created_at', filters.from);
+    if (filters?.to) query = query.lte('created_at', filters.to);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data as unknown as AlertRow[]).map(mapAlert);
   },
 
   async getRecentAlerts(limit = 5): Promise<DeviceAlert[]> {
-    await wait(appConfig.mockLatency.fast);
-    return [...alerts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, limit);
+    assertSupabaseConfigured();
+    const { data, error } = await supabase
+      .from('alerts')
+      .select(ALERT_SELECT)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return (data as unknown as AlertRow[]).map(mapAlert);
   },
 
   async updateStatus(id: string, status: AlertStatus): Promise<DeviceAlert> {
-    await wait();
-    const idx = alerts.findIndex((a) => a.id === id);
-    if (idx === -1) throw new Error('Alert not found');
-    alerts[idx] = {
-      ...alerts[idx],
-      status,
-      resolvedAt: status === 'Resolved' ? new Date().toISOString() : alerts[idx].resolvedAt,
-    };
-    return alerts[idx];
+    assertSupabaseConfigured();
+    const { data, error } = await supabase
+      .from('alerts')
+      .update({ status, resolved_at: status === 'Resolved' ? new Date().toISOString() : null })
+      .eq('id', id)
+      .select(ALERT_SELECT)
+      .single();
+    if (error) throw error;
+    return mapAlert(data as unknown as AlertRow);
   },
 
   async clearAll(): Promise<void> {
-    await wait(appConfig.mockLatency.slow);
-    alerts = alerts.map((a) => ({ ...a, status: 'Resolved' as AlertStatus, resolvedAt: new Date().toISOString() }));
+    assertSupabaseConfigured();
+    const { error } = await supabase
+      .from('alerts')
+      .update({ status: 'Resolved', resolved_at: new Date().toISOString() })
+      .neq('status', 'Resolved');
+    if (error) throw error;
   },
 
   async getActiveCount(): Promise<number> {
-    await wait(appConfig.mockLatency.fast);
-    return alerts.filter((a) => a.status === 'Active').length;
+    assertSupabaseConfigured();
+    const { count, error } = await supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('status', 'Active');
+    if (error) throw error;
+    return count ?? 0;
   },
 };

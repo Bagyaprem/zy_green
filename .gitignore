@@ -1,6 +1,7 @@
 # Environment variables (keep keys out of git)
 .env
 .env.*
+!.env.example
 
 # Logs
 logs

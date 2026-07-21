@@ -19,16 +19,16 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
-  const { isAuthenticated, login } = useAuth();
+  const { status, login } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: 'admin@zygreen.io', password: '' },
+    defaultValues: { email: '', password: '' },
   });
 
-  if (isAuthenticated) {
+  if (status === 'authenticated') {
     return <Navigate to="/" replace />;
   }
 
@@ -99,7 +99,8 @@ export function LoginPage() {
                 Sign in
               </Button>
               <p className="text-center text-[11px] text-muted-foreground">
-                Demo credentials: any email + password (min. 4 characters)
+                Sign-in uses Supabase Auth. Until a real project is configured
+                (see .env.example), sign-in attempts will fail — that&apos;s expected.
               </p>
             </form>
           </Form>

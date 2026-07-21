@@ -1,50 +1,80 @@
-import wifiData from '@/mock/wifi.json';
+import { supabase, assertSupabaseConfigured } from './supabaseClient';
 import type { SaveWifiConfigInput, WifiConfig, WifiNetwork } from '@/types';
-import { wait } from '@/utils/latency';
-import { appConfig } from '@/config/config';
 
-let configs: WifiConfig[] = JSON.parse(JSON.stringify(wifiData.configs)) as WifiConfig[];
-const scanPool: WifiNetwork[] = wifiData.scanPool as WifiNetwork[];
+interface WifiConfigRow {
+  device_id: string;
+  ssid: string | null;
+  connected: boolean;
+  ip_address: string | null;
+  signal: number | null;
+  last_connected_at: string | null;
+}
+
+function mapConfig(row: WifiConfigRow): WifiConfig {
+  return {
+    deviceId: row.device_id,
+    ssid: row.ssid ?? '',
+    connected: row.connected,
+    ipAddress: row.ip_address ?? '',
+    signal: row.signal ?? 0,
+    lastConnectedAt: row.last_connected_at,
+  };
+}
 
 export const wifiService = {
   async getConfig(deviceId: string): Promise<WifiConfig | undefined> {
-    await wait(appConfig.mockLatency.fast);
-    return configs.find((c) => c.deviceId === deviceId);
+    assertSupabaseConfigured();
+    const { data, error } = await supabase.from('wifi_configs').select('*').eq('device_id', deviceId).maybeSingle();
+    if (error) throw error;
+    return data ? mapConfig(data as WifiConfigRow) : undefined;
   },
 
+  /**
+   * Scanning for nearby WiFi networks is a live radio operation performed by
+   * the device itself, not a table read — this calls a Supabase Edge
+   * Function that would relay the request to the device over MQTT/HTTP and
+   * return its scan results. Not deployed by supabase_admin_schema.sql; with
+   * placeholder credentials this fails gracefully like every other call here.
+   */
   async scanNetworks(): Promise<WifiNetwork[]> {
-    await wait(appConfig.mockLatency.slow);
-    return scanPool
-      .map((n) => ({ ...n, signal: Math.max(20, Math.min(100, n.signal ?? Math.floor(Math.random() * 60) + 35)) }))
-      .sort((a, b) => b.signal - a.signal);
+    assertSupabaseConfigured();
+    const { data, error } = await supabase.functions.invoke('wifi-scan');
+    if (error) throw error;
+    return (data ?? []) as WifiNetwork[];
   },
 
   async connect(deviceId: string, ssid: string): Promise<WifiConfig> {
-    await wait(appConfig.mockLatency.slow);
-    const idx = configs.findIndex((c) => c.deviceId === deviceId);
-    const updated: WifiConfig = {
-      deviceId,
-      ssid,
-      connected: true,
-      ipAddress: `192.168.${Math.floor(Math.random() * 20) + 1}.${Math.floor(Math.random() * 250) + 2}`,
-      signal: Math.floor(Math.random() * 40) + 55,
-      lastConnectedAt: new Date().toISOString(),
-    };
-    if (idx === -1) configs.push(updated);
-    else configs[idx] = updated;
-    return updated;
+    assertSupabaseConfigured();
+    const { data, error } = await supabase
+      .from('wifi_configs')
+      .upsert({ device_id: deviceId, ssid, connected: true, last_connected_at: new Date().toISOString() })
+      .select('*')
+      .single();
+    if (error) throw error;
+    return mapConfig(data as WifiConfigRow);
   },
 
   async disconnect(deviceId: string): Promise<WifiConfig> {
-    await wait();
-    const idx = configs.findIndex((c) => c.deviceId === deviceId);
-    if (idx === -1) throw new Error('WiFi config not found');
-    configs[idx] = { ...configs[idx], connected: false, signal: 0 };
-    return configs[idx];
+    assertSupabaseConfigured();
+    const { data, error } = await supabase
+      .from('wifi_configs')
+      .update({ connected: false, signal: 0 })
+      .eq('device_id', deviceId)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return mapConfig(data as WifiConfigRow);
   },
 
+  /**
+   * Pushes SSID/password provisioning to the device via an Edge Function
+   * (never store WiFi passwords in a plain table); the device confirms the
+   * new connection back through its own telemetry update.
+   */
   async saveConfiguration(input: SaveWifiConfigInput): Promise<WifiConfig> {
-    await wait(appConfig.mockLatency.slow);
+    assertSupabaseConfigured();
+    const { error } = await supabase.functions.invoke('provision-device-wifi', { body: input });
+    if (error) throw error;
     return this.connect(input.deviceId, input.ssid);
   },
 };

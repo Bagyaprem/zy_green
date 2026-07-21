@@ -57,10 +57,15 @@ export function Topbar() {
   };
 
   const handleLogout = async () => {
-    await authService.logout();
-    logout();
-    toast.success('Logged out successfully');
-    navigate('/login', { replace: true });
+    try {
+      await authService.logout();
+      toast.success('Logged out successfully');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Logout request failed; clearing local session anyway.');
+    } finally {
+      logout();
+      navigate('/login', { replace: true });
+    }
   };
 
   return (

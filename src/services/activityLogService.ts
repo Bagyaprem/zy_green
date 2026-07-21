@@ -1,9 +1,5 @@
-import activityLogsData from '@/mock/activityLogs.json';
+import { supabase, assertSupabaseConfigured } from './supabaseClient';
 import type { ActivityLogEntry } from '@/types';
-import { wait } from '@/utils/latency';
-import { appConfig } from '@/config/config';
-
-const logs: ActivityLogEntry[] = activityLogsData as ActivityLogEntry[];
 
 export interface ActivityLogFilters {
   search?: string;
@@ -12,30 +8,53 @@ export interface ActivityLogFilters {
   to?: string;
 }
 
+interface ActivityLogRow {
+  id: string;
+  actor: string;
+  actor_role: string | null;
+  action: string;
+  entity_type: ActivityLogEntry['entityType'];
+  entity_name: string | null;
+  timestamp: string;
+  details: string | null;
+  ip: string | null;
+}
+
+function mapLog(row: ActivityLogRow): ActivityLogEntry {
+  return {
+    id: row.id,
+    actor: row.actor,
+    actorRole: row.actor_role ?? '',
+    action: row.action,
+    entityType: row.entity_type,
+    entityName: row.entity_name ?? '',
+    timestamp: row.timestamp,
+    details: row.details ?? '',
+    ip: row.ip ?? '',
+  };
+}
+
 export const activityLogService = {
   async getLogs(filters?: ActivityLogFilters): Promise<ActivityLogEntry[]> {
-    await wait();
-    let result = logs;
+    assertSupabaseConfigured();
+    let query = supabase.from('activity_logs').select('*').order('timestamp', { ascending: false }).limit(500);
+
     if (filters?.search) {
-      const q = filters.search.toLowerCase();
-      result = result.filter(
-        (l) => l.actor.toLowerCase().includes(q) || l.action.toLowerCase().includes(q) || l.entityName.toLowerCase().includes(q)
-      );
+      query = query.or(`actor.ilike.%${filters.search}%,action.ilike.%${filters.search}%,entity_name.ilike.%${filters.search}%`);
     }
-    if (filters?.entityType && filters.entityType !== 'all') {
-      result = result.filter((l) => l.entityType === filters.entityType);
-    }
-    if (filters?.from) {
-      result = result.filter((l) => new Date(l.timestamp) >= new Date(filters.from as string));
-    }
-    if (filters?.to) {
-      result = result.filter((l) => new Date(l.timestamp) <= new Date(filters.to as string));
-    }
-    return [...result].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    if (filters?.entityType && filters.entityType !== 'all') query = query.eq('entity_type', filters.entityType);
+    if (filters?.from) query = query.gte('timestamp', filters.from);
+    if (filters?.to) query = query.lte('timestamp', filters.to);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data as ActivityLogRow[]).map(mapLog);
   },
 
   async getRecent(limit = 8): Promise<ActivityLogEntry[]> {
-    await wait(appConfig.mockLatency.fast);
-    return [...logs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, limit);
+    assertSupabaseConfigured();
+    const { data, error } = await supabase.from('activity_logs').select('*').order('timestamp', { ascending: false }).limit(limit);
+    if (error) throw error;
+    return (data as ActivityLogRow[]).map(mapLog);
   },
 };
