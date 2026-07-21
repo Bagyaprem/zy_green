@@ -138,4 +138,27 @@ export const deviceService = {
     await wait(appConfig.mockLatency.fast);
     return Array.from(new Set(devices.map((d) => d.location))).sort();
   },
+
+  /** Returns a lightly-jittered snapshot of a device's live readings, simulating a fresh telemetry poll. */
+  async getLiveSnapshot(id: string) {
+    await wait(appConfig.mockLatency.fast);
+    const device = devices.find((d) => d.id === id);
+    if (!device) throw new Error('Device not found');
+    const jitter = (value: number, spread: number) => Math.max(0, value + (Math.random() - 0.5) * spread);
+    const readings = {
+      aqi: Math.round(jitter(device.readings.aqi, 8)),
+      pm25: Math.round(jitter(device.readings.pm25, 4)),
+      pm10: Math.round(jitter(device.readings.pm10, 6)),
+      co2: Math.round(jitter(device.readings.co2, 30)),
+      temperature: Number(jitter(device.readings.temperature, 0.6).toFixed(1)),
+      humidity: Math.round(jitter(device.readings.humidity, 3)),
+      tvoc: Number(jitter(device.readings.tvoc, 0.04).toFixed(2)),
+      pressure: Math.round(jitter(device.readings.pressure, 1.5)),
+      light: Math.round(jitter(device.readings.light, 20)),
+      noise: Math.round(jitter(device.readings.noise, 2)),
+    };
+    device.readings = readings;
+    device.lastSync = new Date().toISOString();
+    return { readings, timestamp: device.lastSync };
+  },
 };
