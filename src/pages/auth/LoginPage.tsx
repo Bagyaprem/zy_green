@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { environment } from '@/config/environment';
 
 const loginSchema = z.object({
-  email: z.string().min(1, 'Email is required').email('Enter a valid email address'),
+  email: z.string().trim().min(1, 'Email is required').email('Enter a valid email address'),
   password: z.string().min(4, 'Password must be at least 4 characters'),
 });
 
