@@ -25,8 +25,16 @@ export const environment = {
   // Supabase — admin console data layer. Placeholder values only; see README/.env.example.
   supabaseUrl: import.meta.env.VITE_ADMIN_SUPABASE_URL || DUMMY_SUPABASE_URL,
   supabaseAnonKey: import.meta.env.VITE_ADMIN_SUPABASE_ANON_KEY || DUMMY_SUPABASE_ANON_KEY,
+  // Checks against the known dummy values too, not just presence — an env var
+  // accidentally set to the placeholder text (rather than left unset) must
+  // still count as "not configured", or the app tries to really call a
+  // nonexistent https://your-project.supabase.co and fails with a confusing
+  // network error instead of using the dev login.
   isSupabaseConfigured: Boolean(
-    import.meta.env.VITE_ADMIN_SUPABASE_URL && import.meta.env.VITE_ADMIN_SUPABASE_ANON_KEY
+    import.meta.env.VITE_ADMIN_SUPABASE_URL &&
+      import.meta.env.VITE_ADMIN_SUPABASE_ANON_KEY &&
+      import.meta.env.VITE_ADMIN_SUPABASE_URL !== DUMMY_SUPABASE_URL &&
+      import.meta.env.VITE_ADMIN_SUPABASE_ANON_KEY !== DUMMY_SUPABASE_ANON_KEY
   ),
 
   // Generic REST API (future data layer)
