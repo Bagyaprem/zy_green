@@ -1,9 +1,10 @@
 import { environment } from './environment';
 
 /**
- * API surface placeholders. Every service currently talks to `mock/` data
- * instead of these endpoints. When a real backend is available, point the
- * relevant service at these constants and remove the mock/latency shim.
+ * API surface placeholders for a future generic REST/MQTT/SMTP backend.
+ * The primary data layer today is Supabase (see src/services/supabaseClient.ts
+ * and supabase_admin_schema.sql) — these constants are kept for endpoints
+ * that don't map to a Supabase table/RPC directly.
  */
 export const apiConfig = {
   baseUrl: environment.apiUrl,
