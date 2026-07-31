@@ -2,17 +2,14 @@ import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard,
   Cpu,
+  Building2,
+  FileText,
+  ScrollText,
+  UserCircle,
+  Settings,
   Radio,
   BarChart3,
-  History,
-  FileText,
-  BellRing,
-  Building2,
-  Users,
-  UploadCloud,
-  Settings,
-  ScrollText,
-  LogOut,
+  Download,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -22,19 +19,22 @@ export interface NavItem {
   end?: boolean;
 }
 
+/** Admin console navigation — full fleet/customer management. */
 export const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/', icon: LayoutDashboard, end: true },
-  { label: 'Devices', path: '/devices', icon: Cpu },
-  { label: 'Live Monitoring', path: '/live-monitoring', icon: Radio },
-  { label: 'Analytics', path: '/analytics', icon: BarChart3 },
-  { label: 'Data History', path: '/data-history', icon: History },
+  { label: 'Machine Management', path: '/machines', icon: Cpu },
+  { label: 'Customer Management', path: '/customers', icon: Building2 },
   { label: 'Reports', path: '/reports', icon: FileText },
-  { label: 'Alerts', path: '/alerts', icon: BellRing },
-  { label: 'Customers', path: '/customers', icon: Building2 },
-  { label: 'Users', path: '/users', icon: Users },
-  { label: 'Firmware', path: '/firmware', icon: UploadCloud },
-  { label: 'Settings', path: '/settings', icon: Settings },
   { label: 'Activity Logs', path: '/activity-logs', icon: ScrollText },
+  { label: 'Profile', path: '/profile', icon: UserCircle },
 ];
 
-export const logoutNavItem: NavItem = { label: 'Logout', path: '/logout', icon: LogOut };
+/** Customer portal navigation — view-only, scoped to their own machines by RLS. */
+export const customerNavItems: NavItem[] = [
+  { label: 'Dashboard', path: '/', icon: LayoutDashboard, end: true },
+  { label: 'Live Data', path: '/live-data', icon: Radio },
+  { label: 'Analytics', path: '/analytics', icon: BarChart3 },
+  { label: 'Reports', path: '/reports', icon: FileText },
+  { label: 'Downloads', path: '/downloads', icon: Download },
+  { label: 'Account Settings', path: '/account-settings', icon: Settings },
+];

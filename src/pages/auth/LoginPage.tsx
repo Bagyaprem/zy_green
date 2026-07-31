@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Leaf, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,13 +53,8 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-soft">
-            <Leaf className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">ZYGREEN Admin Console</h1>
-            <p className="text-sm text-muted-foreground">Sign in to manage your IoT device fleet</p>
-          </div>
+          <img src="/logo.png" alt="ZYGREEN" className="h-14 w-14 rounded-full shadow-soft" />
+          <h1 className="text-lg font-semibold text-foreground">ZYGREEN</h1>
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
@@ -70,7 +65,7 @@ export function LoginPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Email or Username</FormLabel>
                     <FormControl>
                       <Input placeholder="you@zygreen.io" autoComplete="email" {...field} />
                     </FormControl>
@@ -104,11 +99,7 @@ export function LoginPage() {
                 {form.formState.isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 Sign in
               </Button>
-              {environment.isSupabaseConfigured ? (
-                <p className="text-center text-[11px] text-muted-foreground">
-                  Sign-in uses Supabase Auth.
-                </p>
-              ) : (
+              {environment.isSupabaseConfigured ? null : (
                 <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-center text-xs text-muted-foreground">
                   <p>
                     No Supabase project connected yet — use the temporary dev login:

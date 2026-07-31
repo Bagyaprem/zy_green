@@ -41,6 +41,14 @@ export function formatBytes(kb: number): string {
   return `${formatNumber(kb / 1024, 1)} MB`;
 }
 
+export function formatUptime(seconds: number): string {
+  if (!seconds) return '0m';
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return [days && `${days}d`, hours && `${hours}h`, minutes && `${minutes}m`].filter(Boolean).join(' ') || '0m';
+}
+
 export function initials(name: string): string {
   return name
     .split(' ')

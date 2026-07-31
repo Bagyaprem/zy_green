@@ -1,16 +1,17 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Leaf, LogOut, X } from 'lucide-react';
+import { LogOut, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { navItems } from '@/constants/navigation';
+import { navItems, customerNavItems } from '@/constants/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/authService';
 import { useUiStore } from '@/store/uiStore';
 import { AnimatePresence, motion } from 'framer-motion';
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const visibleNavItems = user?.customerId ? customerNavItems : navItems;
 
   const handleLogout = async () => {
     try {
@@ -27,17 +28,17 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <Leaf className="h-4.5 w-4.5" />
-        </div>
+        <img src="/logo.png" alt="ZYGREEN" className="h-8 w-8 shrink-0 rounded-full" />
         <div className="leading-tight">
           <p className="text-sm font-semibold text-white">ZYGREEN</p>
-          <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">Admin Console</p>
+          <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">
+            {user?.customerId ? 'Air Quality Monitoring' : 'Admin Console'}
+          </p>
         </div>
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4 no-scrollbar">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}

@@ -16,26 +16,26 @@
     --popover: 0 0% 100%;
     --popover-foreground: 221 39% 11%;
 
-    --primary: 123 46% 34%;
+    --primary: 123 38% 30%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 95%;
+    --secondary: 210 20% 95%;
     --secondary-foreground: 221 39% 11%;
 
-    --muted: 210 40% 95%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 210 20% 95%;
+    --muted-foreground: 220 9% 42%;
 
-    --accent: 123 46% 96%;
-    --accent-foreground: 123 46% 24%;
+    --accent: 123 38% 95%;
+    --accent-foreground: 123 46% 22%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 88%;
-    --ring: 123 46% 34%;
+    --border: 220 13% 88%;
+    --input: 220 13% 85%;
+    --ring: 123 38% 30%;
 
-    --radius: 1rem;
+    --radius: 0.5rem;
 
     /* Sidebar: unmistakably green (deep forest green), not near-black.
        --sidebar-active reuses the brand primary green as a brighter
@@ -66,7 +66,7 @@
     --popover: 222 30% 10%;
     --popover-foreground: 210 40% 96%;
 
-    --primary: 123 40% 46%;
+    --primary: 123 34% 42%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 217 24% 16%;
@@ -75,7 +75,7 @@
     --muted: 217 24% 15%;
     --muted-foreground: 215 16% 65%;
 
-    --accent: 123 30% 18%;
+    --accent: 123 26% 18%;
     --accent-foreground: 123 46% 80%;
 
     --destructive: 0 72% 51%;
@@ -83,7 +83,7 @@
 
     --border: 217 22% 20%;
     --input: 217 22% 22%;
-    --ring: 123 40% 46%;
+    --ring: 123 34% 42%;
 
     /* Dark-theme sidebar stays clearly green too (deeper than the light
        sidebar, brighter primary-tinted highlight for the active item) so it
@@ -113,7 +113,8 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: 'tnum' 1, 'cv11' 1;
   }
 
   ::-webkit-scrollbar {

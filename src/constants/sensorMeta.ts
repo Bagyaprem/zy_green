@@ -1,32 +1,22 @@
-import type { SensorMeta } from '@/types';
+import type { SensorReading } from '@/types';
 
-/**
- * Static UI display configuration (label/unit/color/icon) for each sensor
- * parameter. This is presentation config owned by the frontend, not
- * fabricated business data — the actual readings always come from Supabase.
- */
+export type SensorParameter = 'AQI' | 'PM1.0' | 'PM2.5' | 'PM4.0' | 'PM10' | 'CO2' | 'Temperature' | 'Humidity';
+
+export interface SensorMeta {
+  key: SensorParameter;
+  field: keyof Pick<SensorReading, 'aqi' | 'pm1_0' | 'pm2_5' | 'pm4_0' | 'pm10' | 'co2' | 'temperature' | 'humidity'>;
+  label: string;
+  unit: string;
+  color: string;
+}
+
 export const SENSOR_META: SensorMeta[] = [
-  { key: 'AQI', label: 'AQI', unit: '', color: '#22C55E', icon: 'Activity' },
-  { key: 'PM2.5', label: 'PM2.5', unit: 'ug/m3', color: '#3B82F6', icon: 'Wind' },
-  { key: 'PM10', label: 'PM10', unit: 'ug/m3', color: '#8B5CF6', icon: 'CloudFog' },
-  { key: 'CO2', label: 'CO2', unit: 'ppm', color: '#F59E0B', icon: 'Cloud' },
-  { key: 'Temperature', label: 'Temperature', unit: 'C', color: '#EF4444', icon: 'Thermometer' },
-  { key: 'Humidity', label: 'Humidity', unit: '%', color: '#06B6D4', icon: 'Droplets' },
-  { key: 'TVOC', label: 'TVOC', unit: 'ppm', color: '#EC4899', icon: 'FlaskConical' },
-  { key: 'Pressure', label: 'Pressure', unit: 'hPa', color: '#6366F1', icon: 'Gauge' },
-  { key: 'Light', label: 'Light', unit: 'lux', color: '#F97316', icon: 'Sun' },
-  { key: 'Noise', label: 'Noise', unit: 'dB', color: '#84CC16', icon: 'Volume2' },
+  { key: 'AQI', field: 'aqi', label: 'Air Quality Index', unit: 'AQI', color: '#22C55E' },
+  { key: 'PM1.0', field: 'pm1_0', label: 'PM1.0', unit: 'µg/m³', color: '#3B82F6' },
+  { key: 'PM2.5', field: 'pm2_5', label: 'PM2.5', unit: 'µg/m³', color: '#8B5CF6' },
+  { key: 'PM4.0', field: 'pm4_0', label: 'PM4.0', unit: 'µg/m³', color: '#EC4899' },
+  { key: 'PM10', field: 'pm10', label: 'PM10', unit: 'µg/m³', color: '#F59E0B' },
+  { key: 'CO2', field: 'co2', label: 'CO₂', unit: 'ppm', color: '#0EA5E9' },
+  { key: 'Temperature', field: 'temperature', label: 'Temperature', unit: '°C', color: '#EF4444' },
+  { key: 'Humidity', field: 'humidity', label: 'Humidity', unit: '%', color: '#06B6D4' },
 ];
-
-export const SENSOR_READING_COLUMN: Record<string, string> = {
-  AQI: 'aqi',
-  'PM2.5': 'pm25',
-  PM10: 'pm10',
-  CO2: 'co2',
-  Temperature: 'temperature',
-  Humidity: 'humidity',
-  TVOC: 'tvoc',
-  Pressure: 'pressure',
-  Light: 'light',
-  Noise: 'noise',
-};

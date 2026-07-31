@@ -1,23 +1,37 @@
-export type ReportType = 'Daily' | 'Weekly' | 'Monthly' | 'Custom';
-export type ReportFormat = 'PDF' | 'CSV';
+export type ReportFileType = 'PDF' | 'CSV' | 'Excel';
+export type ReportRequestStatus = 'Pending' | 'Generating' | 'Ready' | 'Failed';
+/**
+ * How many of each hour's ~720 readings to include, per sensor independently:
+ * All = every reading; High/Low = the top/bottom half by value that hour;
+ * Median = the centered half (trims equally off both extremes).
+ */
+export type DataSelectionMode = 'All' | 'High' | 'Low' | 'Median';
 
-export interface GeneratedReport {
+export interface ReportRequest {
   id: string;
-  name: string;
-  type: ReportType;
-  deviceScope: string; // "All Devices" or device name(s)
-  deviceIds: string[];
-  format: ReportFormat;
-  generatedAt: string;
-  generatedBy: string;
-  sizeKb: number;
-  status: 'Ready' | 'Generating' | 'Failed';
+  machineId: string | null;
+  machineName: string | null;
+  customerId: string | null;
+  customerName: string | null;
+  reportType: ReportFileType;
+  dataSelection: DataSelectionMode;
+  reportFrom: string;
+  reportTo: string;
+  status: ReportRequestStatus;
+  requestedAt: string;
+  emailTo: string | null;
+  remarks: string | null;
+  fileName: string | null;
+  fileUrl: string | null;
 }
 
-export interface GenerateReportInput {
-  type: ReportType;
-  deviceIds: string[];
-  from?: string;
-  to?: string;
-  format: ReportFormat;
+export interface CreateReportRequestInput {
+  machineId: string | null;
+  customerId: string | null;
+  reportType: ReportFileType;
+  dataSelection: DataSelectionMode;
+  reportFrom: string;
+  reportTo: string;
+  emailTo?: string;
+  remarks?: string;
 }

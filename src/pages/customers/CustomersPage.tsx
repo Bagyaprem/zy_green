@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { KeyRound, Mail, MonitorSmartphone, MoreHorizontal, RefreshCw, Search } from 'lucide-react';
+import { Eye, MoreHorizontal, Pencil, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,71 +21,57 @@ import { customerService } from '@/services/customerService';
 import { useCustomerStore } from '@/store/customerStore';
 import { useDebounce } from '@/hooks/useDebounce';
 import { CreateCustomerDialog } from '@/features/customers/CreateCustomerDialog';
-import { AssignDeviceDialog } from '@/features/customers/AssignDeviceDialog';
-import { CredentialsDialog } from '@/features/customers/CredentialsDialog';
+import { EditCustomerDialog } from '@/features/customers/EditCustomerDialog';
+import { CustomerDetailsDialog } from '@/features/customers/CustomerDetailsDialog';
 import { formatDate } from '@/utils/format';
-import type { Customer, GeneratedCredentials } from '@/types';
+import type { Customer } from '@/types';
 
 export function CustomersPage() {
+  const [searchParams] = useSearchParams();
   const { search, setSearch } = useCustomerStore();
   const debouncedSearch = useDebounce(search, 250);
   const queryClient = useQueryClient();
-  const [assignTarget, setAssignTarget] = useState<Customer | null>(null);
-  const [credentials, setCredentials] = useState<GeneratedCredentials | null>(null);
-  const [resetTarget, setResetTarget] = useState<Customer | null>(null);
+  const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
+
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q) setSearch(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const customersQuery = useQuery({
     queryKey: ['customers', debouncedSearch],
     queryFn: () => customerService.getCustomers(debouncedSearch),
   });
 
-  const genCredsMutation = useMutation({
-    mutationFn: customerService.generateCredentials,
-    onSuccess: (creds) => setCredentials(creds),
-    onError: () => toast.error('Failed to generate credentials'),
-  });
-
-  const resetPwMutation = useMutation({
-    mutationFn: customerService.resetPassword,
-    onSuccess: (creds) => setCredentials(creds),
-    onError: () => toast.error('Failed to reset password'),
-  });
-
-  const inviteMutation = useMutation({
-    mutationFn: customerService.sendInvitation,
-    onSuccess: (res) => toast.success(`Invitation sent to ${res.sentTo}`),
-    onError: () => toast.error('Failed to send invitation'),
+  const deleteMutation = useMutation({
+    mutationFn: customerService.deleteCustomer,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customers-lite'] });
+      toast.success('Customer deleted');
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to delete customer'),
   });
 
   const columns: ColumnDef<Customer>[] = [
     {
-      accessorKey: 'name',
-      header: 'Name',
-      cell: ({ row }) => (
-        <div>
-          <p className="font-medium text-foreground">{row.original.name}</p>
-          <p className="text-xs text-muted-foreground">{row.original.plan} Plan</p>
-        </div>
-      ),
+      accessorKey: 'customerName',
+      header: 'Customer Name',
+      cell: ({ row }) => <p className="font-medium text-foreground">{row.original.customerName}</p>,
     },
-    {
-      accessorKey: 'contactName',
-      header: 'Contact',
-      cell: ({ row }) => (
-        <div>
-          <p className="text-foreground">{row.original.contactName}</p>
-          <p className="text-xs text-muted-foreground">{row.original.email}</p>
-        </div>
-      ),
-    },
-    { accessorKey: 'deviceCount', header: 'Devices' },
-    { accessorKey: 'userCount', header: 'Users' },
+    { accessorKey: 'companyName', header: 'Company', cell: ({ row }) => row.original.companyName || '-' },
+    { accessorKey: 'email', header: 'Email' },
+    { accessorKey: 'phone', header: 'Phone', cell: ({ row }) => row.original.phone || '-' },
+    { accessorKey: 'machineCount', header: 'Total Machines' },
     {
       accessorKey: 'status',
       header: 'Status',
       cell: ({ row }) => <Badge variant={row.original.status === 'Active' ? 'success' : 'muted'}>{row.original.status}</Badge>,
     },
-    { accessorKey: 'createdAt', header: 'Since', cell: ({ row }) => formatDate(row.original.createdAt) },
+    { accessorKey: 'createdAt', header: 'Created Date', cell: ({ row }) => formatDate(row.original.createdAt) },
     {
       id: 'actions',
       header: 'Actions',
@@ -99,26 +86,23 @@ export function CustomersPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setAssignTarget(customer)}>
-                <MonitorSmartphone className="h-3.5 w-3.5" />
-                Assign Device
+              <DropdownMenuItem onClick={() => setViewingCustomer(customer)}>
+                <Eye className="h-3.5 w-3.5" />
+                View
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => genCredsMutation.mutate(customer.id)}>
-                <KeyRound className="h-3.5 w-3.5" />
-                Generate Credentials
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => inviteMutation.mutate(customer.id)}>
-                <Mail className="h-3.5 w-3.5" />
-                Send Invitation
+              <DropdownMenuItem onClick={() => setEditingCustomer(customer)}>
+                <Pencil className="h-3.5 w-3.5" />
+                Edit
               </DropdownMenuItem>
               <DropdownMenuItem
+                className="text-danger focus:text-danger"
                 onSelect={(e) => {
                   e.preventDefault();
-                  setResetTarget(customer);
+                  setDeleteTarget(customer);
                 }}
               >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Reset Password
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -130,8 +114,8 @@ export function CustomersPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Customers"
-        description="Manage customer organizations, their devices, and access credentials."
+        title="Customer Management"
+        description="Manage customer organizations and their machines."
         actions={<CreateCustomerDialog />}
       />
 
@@ -153,25 +137,24 @@ export function CustomersPage() {
             isError={customersQuery.isError}
             onRetry={() => customersQuery.refetch()}
             emptyTitle="No customers found"
-            emptyDescription="Create your first customer to get started."
+            emptyDescription="Add your first customer to get started."
           />
         </CardContent>
       </Card>
 
-      <AssignDeviceDialog customer={assignTarget} onOpenChange={(open) => !open && setAssignTarget(null)} />
-      <CredentialsDialog credentials={credentials} onOpenChange={(open) => !open && setCredentials(null)} />
+      <CustomerDetailsDialog customer={viewingCustomer} onOpenChange={(open) => !open && setViewingCustomer(null)} />
+      <EditCustomerDialog customer={editingCustomer} onOpenChange={(open) => !open && setEditingCustomer(null)} />
 
       <ConfirmDialog
         trigger={<span className="hidden" />}
-        open={!!resetTarget}
-        onOpenChange={(open) => !open && setResetTarget(null)}
-        variant="default"
-        title="Reset password?"
-        description={`This will generate a new password for ${resetTarget?.name}. Their current password will stop working immediately.`}
-        confirmLabel="Reset Password"
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete customer?"
+        description={`This will permanently delete ${deleteTarget?.customerName} AND all of their machines, along with every historical sensor reading those machines ever recorded. This cannot be undone.`}
+        confirmLabel="Delete"
         onConfirm={() => {
-          if (resetTarget) resetPwMutation.mutate(resetTarget.id);
-          setResetTarget(null);
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+          setDeleteTarget(null);
         }}
       />
     </div>

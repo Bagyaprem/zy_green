@@ -26,3 +26,16 @@ export function assertSupabaseConfigured() {
     );
   }
 }
+
+/**
+ * Supabase's `auth.signUp()` also signs the browser in as the new user,
+ * which would kick the admin out of their own session if called on the
+ * shared `supabase` client above. This creates a throwaway client with no
+ * persisted session — used only to create a customer's login account — so
+ * the admin's own session is untouched.
+ */
+export function createThrowawayAuthClient() {
+  return createClient(environment.supabaseUrl, environment.supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}

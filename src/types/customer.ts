@@ -2,29 +2,25 @@ export type CustomerStatus = 'Active' | 'Inactive';
 
 export interface Customer {
   id: string;
-  name: string;
-  contactName: string;
+  customerName: string;
+  companyName: string;
   email: string;
   phone: string;
   address: string;
-  deviceCount: number;
-  userCount: number;
+  machineCount: number;
   status: CustomerStatus;
-  plan: 'Starter' | 'Professional' | 'Enterprise';
   createdAt: string;
 }
 
 export interface CreateCustomerInput {
-  name: string;
-  contactName: string;
+  customerName: string;
+  companyName: string;
   email: string;
   phone: string;
   address: string;
-  plan: Customer['plan'];
+  status: CustomerStatus;
+  /** Optional — if set, creates a real login account for this customer alongside the record. */
+  password?: string;
 }
 
-export interface GeneratedCredentials {
-  username: string;
-  password: string;
-  issuedAt: string;
-}
+export type UpdateCustomerInput = Partial<CreateCustomerInput>;

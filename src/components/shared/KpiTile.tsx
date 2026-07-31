@@ -21,15 +21,15 @@ const toneClasses: Record<NonNullable<KpiTileProps['tone']>, string> = {
 
 export function KpiTile({ label, value, icon: Icon, tone = 'default', hint }: KpiTileProps) {
   return (
-    <Card className="p-4">
+    <Card className="p-5">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-medium text-muted-foreground">{label}</p>
-          <p className="mt-1.5 text-2xl font-semibold tracking-tight text-foreground">{value}</p>
+          <p className="mt-2 text-3xl font-bold tracking-tight text-foreground">{value}</p>
           {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
         </div>
-        <div className={cn('flex h-9 w-9 items-center justify-center rounded-xl', toneClasses[tone])}>
-          <Icon className="h-4.5 w-4.5" />
+        <div className={cn('flex h-11 w-11 items-center justify-center rounded-xl', toneClasses[tone])}>
+          <Icon className="h-5 w-5" />
         </div>
       </div>
     </Card>

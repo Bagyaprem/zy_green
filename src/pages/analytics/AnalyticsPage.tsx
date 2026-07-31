@@ -1,116 +1,190 @@
-import { useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { BarChart3, LineChart as LineChartIcon } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TimeRangeSelector } from '@/components/shared/TimeRangeSelector';
-import { TrendChart } from '@/components/charts/TrendChart';
-import { CardSkeleton } from '@/components/shared/TableSkeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { deviceService } from '@/services/deviceService';
-import { analyticsService } from '@/services/analyticsService';
-import { useAnalyticsStore } from '@/store/analyticsStore';
-import { SENSOR_PARAMETERS } from '@/constants/options';
-import { formatNumber } from '@/utils/format';
-import type { SensorParameter } from '@/types';
+import { CardSkeleton } from '@/components/shared/TableSkeleton';
+import { TrendChart } from '@/components/charts/TrendChart';
+import { AqiDonut } from '@/components/charts/AqiDonut';
+import { MachineSelect } from '@/components/shared/MachineSelect';
+import { sensorService } from '@/services/sensorService';
+import { SENSOR_META, type SensorParameter } from '@/constants/sensorMeta';
+import { aqiBandFor } from '@/constants/aqi';
+import { formatTime } from '@/utils/format';
+import { cn } from '@/lib/utils';
+
+function toDateInput(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
 
 export function AnalyticsPage() {
-  const { deviceId, parameter, timeRange, customFrom, customTo, setDeviceId, setParameter, setTimeRange, setCustomRange } =
-    useAnalyticsStore();
+  const [machineId, setMachineId] = useState('');
+  const [parameter, setParameter] = useState<SensorParameter>('PM2.5');
+  const [chartType, setChartType] = useState<'line' | 'bar'>('line');
+  const [from, setFrom] = useState(toDateInput(new Date(Date.now() - 7 * 86400000)));
+  const [to, setTo] = useState(toDateInput(new Date()));
+  const [compareKeys, setCompareKeys] = useState<SensorParameter[]>(['PM2.5', 'PM10']);
 
-  const devicesQuery = useQuery({ queryKey: ['devices-lite'], queryFn: () => deviceService.getDevices() });
-  const sensorMetaQuery = useQuery({ queryKey: ['sensor-meta'], queryFn: analyticsService.getSensorMeta });
+  const meta = SENSOR_META.find((s) => s.key === parameter)!;
 
-  useEffect(() => {
-    if (!deviceId && devicesQuery.data?.length) {
-      setDeviceId(devicesQuery.data[0].id);
-    }
-  }, [devicesQuery.data, deviceId, setDeviceId]);
-
-  const trendQuery = useQuery({
-    queryKey: ['analytics-trend', deviceId, parameter, timeRange, customFrom, customTo],
-    queryFn: () => analyticsService.getTrend(deviceId, parameter, timeRange, { from: customFrom, to: customTo }),
-    enabled: !!deviceId,
+  const historyQuery = useQuery({
+    queryKey: ['analytics-history', machineId, from, to],
+    queryFn: () => sensorService.getHistory(machineId, new Date(from).toISOString(), new Date(`${to}T23:59:59`).toISOString()),
+    enabled: !!machineId,
   });
 
-  const summaryQuery = useQuery({
-    queryKey: ['analytics-summary', deviceId, parameter, timeRange, customFrom, customTo],
-    queryFn: () => analyticsService.getSummary(deviceId, parameter, timeRange, { from: customFrom, to: customTo }),
-    enabled: !!deviceId,
-  });
+  const barData = (historyQuery.data ?? []).map((r) => ({ timestamp: r.recordedAt, value: r[meta.field] ?? 0 }));
+  const compareSeries = SENSOR_META.filter((s) => compareKeys.includes(s.key));
 
-  const meta = sensorMetaQuery.data?.find((m) => m.key === parameter);
-  const selectedDevice = devicesQuery.data?.find((d) => d.id === deviceId);
+  const aqiValues = (historyQuery.data ?? []).map((r) => r.aqi).filter((v): v is number => v != null);
+  const aqiBandCounts = aqiValues.reduce<Record<string, number>>((acc, v) => {
+    const band = aqiBandFor(v).label;
+    acc[band] = (acc[band] ?? 0) + 1;
+    return acc;
+  }, {});
+  const aqiAverage = aqiValues.length ? aqiValues.reduce((sum, v) => sum + v, 0) / aqiValues.length : 0;
+
+  const toggleCompare = (key: SensorParameter) => {
+    setCompareKeys((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  };
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Analytics" description="Deep-dive into historical sensor trends for any device." />
+      <PageHeader title="Analytics" description="Analyze historical air quality data for your machine." />
 
       <Card>
-        <CardContent className="flex flex-wrap items-center gap-3 p-4">
-          <Select value={deviceId} onValueChange={setDeviceId}>
-            <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="Select device" />
-            </SelectTrigger>
-            <SelectContent>
-              {devicesQuery.data?.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.id} &middot; {d.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={parameter} onValueChange={(v) => setParameter(v as SensorParameter)}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Select parameter" />
-            </SelectTrigger>
-            <SelectContent>
-              {SENSOR_PARAMETERS.map((p) => (
-                <SelectItem key={p} value={p}>
-                  {p}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <TimeRangeSelector value={timeRange} onChange={setTimeRange} customFrom={customFrom} customTo={customTo} onCustomChange={setCustomRange} />
+        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="min-w-[200px] space-y-2">
+            <Label>Machine</Label>
+            <MachineSelect value={machineId} onChange={setMachineId} />
+          </div>
+          <div className="min-w-[160px] space-y-2">
+            <Label>Parameter</Label>
+            <Select value={parameter} onValueChange={(v) => setParameter(v as SensorParameter)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SENSOR_META.map((s) => (
+                  <SelectItem key={s.key} value={s.key}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>From</Label>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>To</Label>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+          <Button variant="outline" onClick={() => historyQuery.refetch()}>
+            Apply
+          </Button>
+          <div className="ml-auto flex gap-1">
+            <Button size="sm" variant={chartType === 'line' ? 'default' : 'outline'} onClick={() => setChartType('line')}>
+              <LineChartIcon className="h-3.5 w-3.5" />
+              Line Chart
+            </Button>
+            <Button size="sm" variant={chartType === 'bar' ? 'default' : 'outline'} onClick={() => setChartType('bar')}>
+              <BarChart3 className="h-3.5 w-3.5" />
+              Bar Chart
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {meta?.label ?? parameter} Trend {selectedDevice ? `- ${selectedDevice.name}` : ''}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {trendQuery.isLoading ? (
-            <CardSkeleton className="h-96 w-full" />
-          ) : trendQuery.isError ? (
-            <ErrorState onRetry={() => trendQuery.refetch()} />
-          ) : (
-            <TrendChart data={trendQuery.data ?? []} color={meta?.color} unit={meta?.unit} height={380} />
-          )}
-        </CardContent>
-      </Card>
+      {!machineId ? (
+        <EmptyState title="Select a machine" description="Choose a machine above to view its analytics." />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>
+                  {meta.label} ({meta.unit})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {historyQuery.isLoading ? (
+                  <CardSkeleton className="h-72 w-full" />
+                ) : historyQuery.isError ? (
+                  <ErrorState onRetry={() => historyQuery.refetch()} />
+                ) : !historyQuery.data?.length ? (
+                  <EmptyState title="No data in this range" />
+                ) : chartType === 'line' ? (
+                  <TrendChart data={historyQuery.data} series={[meta]} />
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={barData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
+                      <XAxis dataKey="timestamp" tickFormatter={(v) => formatTime(v)} tick={{ fontSize: 11 }} minTickGap={40} />
+                      <YAxis tick={{ fontSize: 11 }} width={36} />
+                      <Tooltip labelFormatter={(v) => formatTime(v as string)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                      <Bar dataKey="value" name={`${meta.label} (${meta.unit})`} fill={meta.color} radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {[
-          { label: 'Average', value: summaryQuery.data?.average },
-          { label: 'Minimum', value: summaryQuery.data?.min },
-          { label: 'Maximum', value: summaryQuery.data?.max },
-          { label: 'Current', value: summaryQuery.data?.current },
-        ].map((s) => (
-          <Card key={s.label}>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">{s.label}</p>
-              <p className="mt-1.5 text-2xl font-semibold text-foreground">
-                {formatNumber(s.value ?? 0, meta?.key === 'TVOC' ? 2 : 1)}
-                <span className="ml-1 text-xs font-normal text-muted-foreground">{meta?.unit}</span>
-              </p>
+            <Card>
+              <CardHeader>
+                <CardTitle>AQI Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {historyQuery.isLoading ? (
+                  <CardSkeleton className="h-72 w-full" />
+                ) : historyQuery.isError ? (
+                  <ErrorState onRetry={() => historyQuery.refetch()} />
+                ) : !aqiValues.length ? (
+                  <EmptyState title="No AQI data in this range" />
+                ) : (
+                  <AqiDonut average={aqiAverage} bandCounts={aqiBandCounts} total={aqiValues.length} />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Data Comparison</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {SENSOR_META.filter((s) => s.key !== 'AQI').map((s) => (
+                  <button
+                    key={s.key}
+                    onClick={() => toggleCompare(s.key)}
+                    className={cn(
+                      'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                      compareKeys.includes(s.key) ? 'border-transparent text-white' : 'border-border text-muted-foreground hover:bg-muted'
+                    )}
+                    style={compareKeys.includes(s.key) ? { backgroundColor: s.color } : undefined}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              {historyQuery.data?.length ? (
+                <TrendChart data={historyQuery.data} series={compareSeries} />
+              ) : (
+                <EmptyState title="No data to compare" />
+              )}
             </CardContent>
           </Card>
-        ))}
-      </div>
+        </>
+      )}
     </div>
   );
 }

@@ -12,7 +12,7 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ['Poppins', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: 'hsl(var(--border))',
@@ -79,10 +79,10 @@ const config: Config = {
         '2xl': 'calc(var(--radius) + 8px)',
       },
       boxShadow: {
-        // Slightly stronger than a typical "card on tinted background" shadow
-        // since the page background is now pure white too (same as cards) —
-        // border + this shadow are what defines each card's edge.
-        card: '0 1px 2px 0 rgb(0 0 0 / 0.05), 0 2px 6px -1px rgb(0 0 0 / 0.08)',
+        // Page background is pure white, same as cards, so the border does
+        // most of the work defining each card's edge — this shadow is a
+        // near-hairline accent, not a glow.
+        card: '0 1px 2px 0 rgb(0 0 0 / 0.04)',
         soft: '0 4px 16px -4px rgb(0 0 0 / 0.08)',
         popover: '0 8px 30px -6px rgb(0 0 0 / 0.15)',
       },

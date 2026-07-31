@@ -1,57 +1,40 @@
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import type { TrendPoint } from '@/types';
-import { formatDateTime, formatTime } from '@/utils/format';
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { formatTime } from '@/utils/format';
+import type { SensorMeta } from '@/constants/sensorMeta';
+import type { SensorReading } from '@/types';
 
 interface TrendChartProps {
-  data: TrendPoint[];
-  color?: string;
-  unit?: string;
-  height?: number;
-  compact?: boolean;
+  data: SensorReading[];
+  series: SensorMeta[];
 }
 
-export function TrendChart({ data, color = '#2E7D32', unit = '', height = 320, compact = false }: TrendChartProps) {
-  const gradientId = `trend-gradient-${color.replace('#', '')}`;
+export function TrendChart({ data, series }: TrendChartProps) {
+  const chartData = data.map((d) => ({
+    timestamp: d.recordedAt,
+    ...Object.fromEntries(series.map((s) => [s.field, d[s.field] ?? null])),
+  }));
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data} margin={{ top: 10, right: 12, left: -12, bottom: 0 }}>
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.35} />
-            <stop offset="95%" stopColor={color} stopOpacity={0.02} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
+    <ResponsiveContainer width="100%" height={280}>
+      <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border" opacity={0.4} />
         <XAxis
           dataKey="timestamp"
           tickFormatter={(v) => formatTime(v)}
-          tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-          axisLine={false}
-          tickLine={false}
+          tick={{ fontSize: 11 }}
+          className="text-muted-foreground"
           minTickGap={40}
-          hide={compact}
         />
-        <YAxis
-          tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-          axisLine={false}
-          tickLine={false}
-          width={40}
-          hide={compact}
-        />
+        <YAxis tick={{ fontSize: 11 }} className="text-muted-foreground" width={36} />
         <Tooltip
-          contentStyle={{
-            borderRadius: 12,
-            border: '1px solid hsl(var(--border))',
-            background: 'hsl(var(--popover))',
-            fontSize: 12,
-            color: 'hsl(var(--popover-foreground))',
-          }}
-          labelFormatter={(v) => formatDateTime(v as string)}
-          formatter={(value: number) => [`${value} ${unit}`, 'Value']}
+          labelFormatter={(v) => formatTime(v as string)}
+          contentStyle={{ fontSize: 12, borderRadius: 8 }}
         />
-        <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2} fill={`url(#${gradientId})`} />
-      </AreaChart>
+        <Legend wrapperStyle={{ fontSize: 11 }} />
+        {series.map((s) => (
+          <Line key={s.field} type="natural" dataKey={s.field} name={`${s.label} (${s.unit})`} stroke={s.color} strokeWidth={2} dot={false} />
+        ))}
+      </LineChart>
     </ResponsiveContainer>
   );
 }

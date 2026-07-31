@@ -1,21 +1,16 @@
-export interface WifiNetwork {
-  ssid: string;
-  signal: number; // percent
-  secure: boolean;
-  frequencyGHz: 2.4 | 5;
-}
+export type WifiConnectionStatus = 'Connected' | 'Disconnected' | 'Connecting';
 
-export interface WifiConfig {
-  deviceId: string;
+export interface MachineWifi {
+  machineId: string;
   ssid: string;
-  connected: boolean;
+  password: string;
+  connectionStatus: WifiConnectionStatus;
   ipAddress: string;
-  signal: number;
+  macAddress: string;
   lastConnectedAt: string | null;
 }
 
-export interface SaveWifiConfigInput {
-  deviceId: string;
+export interface SaveWifiInput {
   ssid: string;
   password: string;
 }

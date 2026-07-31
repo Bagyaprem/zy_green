@@ -20,25 +20,46 @@ const devUser: AuthenticatedUser = {
   id: 'dev-user',
   name: 'Dev Admin',
   email: DEV_LOGIN_EMAIL,
-  role: 'Admin',
   avatarColor: avatarColors[0],
+  customerId: null,
 };
 
-async function mapSessionToUser(session: Session | null): Promise<AuthenticatedUser | null> {
+/**
+ * Maps a Supabase Auth session to the app's user shape. If the session's
+ * email matches a row in `customers`, this is that customer (scoped to
+ * their own data by RLS). Otherwise it must match the `admin_users`
+ * allowlist to be treated as an admin — an authenticated session that
+ * matches neither (e.g. a self-signed-up account) is not a valid app user
+ * even though Supabase Auth accepted the login, so it's signed out rather
+ * than shown a shell with no data.
+ */
+async function sessionToUser(session: Session | null): Promise<AuthenticatedUser | null> {
   if (!session?.user) return null;
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', session.user.id)
-    .maybeSingle();
+  const email = session.user.email ?? '';
+  const { data: customer } = await supabase.from('customers').select('id, customer_name').eq('email', email).maybeSingle();
+  if (customer) {
+    return {
+      id: session.user.id,
+      name: customer.customer_name,
+      email,
+      avatarColor: avatarColors[0],
+      customerId: customer.id,
+    };
+  }
+
+  const { data: admin } = await supabase.from('admin_users').select('email').eq('email', email).maybeSingle();
+  if (!admin) {
+    await supabase.auth.signOut();
+    return null;
+  }
 
   return {
     id: session.user.id,
-    name: profile?.name ?? session.user.email?.split('@')[0] ?? 'User',
-    email: session.user.email ?? '',
-    role: profile?.role ?? 'Viewer',
-    avatarColor: profile?.avatar_color ?? avatarColors[0],
+    name: email.split('@')[0] || 'Admin',
+    email,
+    avatarColor: avatarColors[0],
+    customerId: null,
   };
 }
 
@@ -53,8 +74,8 @@ export const authService = {
     }
     const { data, error } = await supabase.auth.signInWithPassword({ email: input.email, password: input.password });
     if (error) throw error;
-    const user = await mapSessionToUser(data.session);
-    if (!user) throw new Error('Login succeeded but no user session was returned.');
+    const user = await sessionToUser(data.session);
+    if (!user) throw new Error('This account is not registered as a customer or admin for ZYGREEN.');
     return user;
   },
 
@@ -68,7 +89,7 @@ export const authService = {
     if (error) throw error;
   },
 
-  /** Resolves the current session (if any) into an AuthenticatedUser. Async because a real Supabase session lookup is async. */
+  /** Resolves the current session (if any) into an AuthenticatedUser. */
   async getCurrentUser(): Promise<AuthenticatedUser | null> {
     if (!environment.isSupabaseConfigured) {
       return sessionStorage.getItem(DEV_SESSION_KEY) ? devUser : null;
@@ -76,7 +97,7 @@ export const authService = {
     assertSupabaseConfigured();
     const { data, error } = await supabase.auth.getSession();
     if (error) throw error;
-    return mapSessionToUser(data.session);
+    return sessionToUser(data.session);
   },
 
   /** Subscribes to Supabase auth state changes; returns an unsubscribe function. No-op in dev-login mode since there's no real session to watch. */
@@ -85,7 +106,7 @@ export const authService = {
       return () => {};
     }
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      void mapSessionToUser(session).then(callback);
+      void sessionToUser(session).then(callback);
     });
     return () => data.subscription.unsubscribe();
   },

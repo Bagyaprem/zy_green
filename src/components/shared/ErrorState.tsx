@@ -9,7 +9,7 @@ interface ErrorStateProps {
 
 export function ErrorState({ title = 'Something went wrong', description = 'We could not load this data. Please try again.', onRetry }: ErrorStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-danger/40 bg-danger/5 px-6 py-14 text-center">
+    <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-danger/40 bg-danger/5 px-6 py-14 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-danger/10">
         <AlertTriangle className="h-6 w-6 text-danger" />
       </div>
