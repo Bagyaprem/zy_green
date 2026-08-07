@@ -11,10 +11,41 @@ import { environment } from '@/config/environment';
  * already handles via React Query's loading/error states. No fabricated
  * fallback data is returned on failure.
  */
+/**
+ * One-time cleanup of pre-sessionStorage sessions. Anyone signed in before
+ * the switch below still has a Supabase auth token in localStorage that this
+ * client no longer reads — so it would sit there indefinitely, a valid
+ * refresh token that nothing in the app can see or expire. Drop it.
+ */
+try {
+  for (const key of Object.keys(window.localStorage)) {
+    if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+      window.localStorage.removeItem(key);
+    }
+  }
+} catch {
+  // localStorage blocked (private mode / cookies disabled) — nothing to clean.
+}
+
 export const supabase = createClient(environment.supabaseUrl, environment.supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    /**
+     * Per-tab sessions. Supabase defaults to localStorage, which is shared
+     * across every tab on the origin — so signing out (or in) in one tab
+     * fired a storage event that propagated to all the others, making it
+     * impossible to be logged in as an admin and a customer side by side.
+     *
+     * sessionStorage is scoped to a single tab, so each one holds its own
+     * independent session and they no longer interfere.
+     *
+     * Tradeoff, deliberate: a session no longer survives closing the tab,
+     * and a brand-new tab starts logged out. For a console showing customer
+     * data that's a reasonable security posture (nothing lingers after the
+     * tab is gone), but it does mean no "stay signed in across restarts".
+     */
+    storage: window.sessionStorage,
   },
 });
 
