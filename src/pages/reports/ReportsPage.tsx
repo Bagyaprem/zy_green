@@ -134,6 +134,7 @@ export function ReportsPage() {
   const mutation = useMutation({
     mutationFn: () => {
       if (!machineQuery.data) throw new Error('Select a machine first');
+      if (new Date(to).getTime() <= new Date(from).getTime()) throw new Error('"To" must be after "From"');
       return reportService.createReportRequest({
         machineId,
         customerId: machineQuery.data.customerId,
