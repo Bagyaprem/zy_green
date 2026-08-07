@@ -6,11 +6,12 @@ import type { Session } from '@supabase/supabase-js';
 const avatarColors = ['#2E7D32', '#3B82F6', '#F59E0B', '#8B5CF6', '#EF4444', '#0EA5E9', '#EC4899'];
 
 /**
- * Dev-only login bypass: while VITE_ADMIN_SUPABASE_* is unconfigured, real
- * Supabase auth can't work at all, so there'd be no way to reach the UI.
- * These fixed credentials let you in locally; remove this block once a real
- * Supabase project is wired up (isSupabaseConfigured becomes true and this
- * path is skipped automatically).
+ * Dev-only login bypass: while VITE_ADMIN_SUPABASE_* is unconfigured in a
+ * LOCAL dev build, real Supabase auth can't work at all, so there'd be no
+ * way to reach the UI. Gated on environment.isDevLoginEnabled, which
+ * requires import.meta.env.DEV — see the comment there for why keying this
+ * off "Supabase unconfigured" alone was an exploitable hole in any deployed
+ * build that was missing its env vars.
  */
 export const DEV_LOGIN_EMAIL = 'admin@zygreen.dev';
 export const DEV_LOGIN_PASSWORD = 'admin1234';
@@ -67,12 +68,17 @@ async function sessionToUser(session: Session | null): Promise<AuthenticatedUser
 
 export const authService = {
   async login(input: LoginInput): Promise<AuthenticatedUser> {
-    if (!environment.isSupabaseConfigured) {
+    if (environment.isDevLoginEnabled) {
       if (input.email.trim().toLowerCase() === DEV_LOGIN_EMAIL && input.password === DEV_LOGIN_PASSWORD) {
         sessionStorage.setItem(DEV_SESSION_KEY, '1');
         return devUser;
       }
       throw new Error(`Supabase isn't configured yet — use the dev credentials shown below the form (${DEV_LOGIN_EMAIL} / ${DEV_LOGIN_PASSWORD}).`);
+    }
+    if (!environment.isSupabaseConfigured) {
+      throw new Error(
+        'This deployment is missing its Supabase configuration (VITE_ADMIN_SUPABASE_URL / VITE_ADMIN_SUPABASE_ANON_KEY). Set them in the hosting provider and redeploy.'
+      );
     }
     const { data, error } = await supabase.auth.signInWithPassword({ email: input.email, password: input.password });
     if (error) throw error;
@@ -82,7 +88,7 @@ export const authService = {
   },
 
   async logout(): Promise<void> {
-    if (!environment.isSupabaseConfigured) {
+    if (environment.isDevLoginEnabled) {
       sessionStorage.removeItem(DEV_SESSION_KEY);
       return;
     }
@@ -93,7 +99,7 @@ export const authService = {
 
   /** Resolves the current session (if any) into an AuthenticatedUser. */
   async getCurrentUser(): Promise<AuthenticatedUser | null> {
-    if (!environment.isSupabaseConfigured) {
+    if (environment.isDevLoginEnabled) {
       return sessionStorage.getItem(DEV_SESSION_KEY) ? devUser : null;
     }
     assertSupabaseConfigured();
@@ -105,7 +111,7 @@ export const authService = {
   /** Subscribes to Supabase auth state changes; returns an unsubscribe function. No-op in dev-login mode since there's no real session to watch. */
   onAuthStateChange(callback: (user: AuthenticatedUser | null) => void): () => void {
     if (!environment.isSupabaseConfigured) {
-      return () => {};
+      return () => {};   // nothing to subscribe to: dev-login mode, or a misconfigured deploy
     }
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       void sessionToUser(session).then(callback);

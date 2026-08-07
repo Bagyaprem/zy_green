@@ -99,7 +99,10 @@ export function LoginPage() {
                 {form.formState.isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 Sign in
               </Button>
-              {environment.isSupabaseConfigured ? null : (
+              {/* Local dev only — never rendered in a deployed build, where
+                  printing these would hand admin access to anyone loading the
+                  page. See environment.isDevLoginEnabled. */}
+              {environment.isDevLoginEnabled && (
                 <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-center text-xs text-muted-foreground">
                   <p>
                     No Supabase project connected yet — use the temporary dev login:
@@ -114,6 +117,15 @@ export function LoginPage() {
                   >
                     Fill dev credentials
                   </button>
+                </div>
+              )}
+              {!environment.isSupabaseConfigured && !environment.isDevLoginEnabled && (
+                <div className="rounded-lg border border-dashed border-destructive/40 bg-destructive/5 p-3 text-center text-xs text-muted-foreground">
+                  <p className="font-medium text-destructive">This deployment isn't configured</p>
+                  <p className="mt-1">
+                    VITE_ADMIN_SUPABASE_URL and VITE_ADMIN_SUPABASE_ANON_KEY are missing. Set them in your hosting provider's
+                    environment variables and redeploy.
+                  </p>
                 </div>
               )}
             </form>
