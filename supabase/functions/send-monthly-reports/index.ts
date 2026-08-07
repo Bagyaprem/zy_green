@@ -158,11 +158,50 @@ Deno.serve(async (req) => {
     const skipped: string[] = [];
     const errors: { customer: string; error: string }[] = [];
 
-    for (const [, customer] of byCustomer) {
+    /**
+     * Audit trail. One row per customer per run, for every outcome - sent,
+     * failed, or skipped. Without it a failed 00:00 run is entirely silent
+     * and only surfaces when someone asks where their report went.
+     *
+     * Deliberately never throws: a logging failure must not abort the run or
+     * mask the real result, so it reports to the console and moves on.
+     */
+    async function recordHistory(entry: {
+      customerId: string | null;
+      customerName: string;
+      machineCount: number;
+      rowCount: number;
+      recipient: string | null;
+      fileName: string | null;
+      status: 'Sent' | 'Failed' | 'Skipped';
+      error: string | null;
+    }) {
+      const { error: histError } = await supabase.from('report_history').insert({
+        period_label: label,
+        period_from: from,
+        period_to: to,
+        customer_id: entry.customerId,
+        customer_name: entry.customerName,
+        machine_count: entry.machineCount,
+        row_count: entry.rowCount,
+        recipient: entry.recipient,
+        file_name: entry.fileName,
+        status: entry.status,
+        error: entry.error,
+      });
+      if (histError) console.error('[report_history] insert failed:', histError.message);
+    }
+
+    for (const [customerId, customer] of byCustomer) {
       // With DELIVER_TO_CUSTOMER off, a missing customer email is fine —
       // everything is going to the admin address anyway.
       if (DELIVER_TO_CUSTOMER && !customer.email) {
         skipped.push(`${customer.name} (no email on file)`);
+        await recordHistory({
+          customerId, customerName: customer.name, machineCount: customer.machines.length,
+          rowCount: 0, recipient: null, fileName: null,
+          status: 'Skipped', error: 'No email address on file for this customer',
+        });
         continue;
       }
 
@@ -191,6 +230,11 @@ Deno.serve(async (req) => {
 
       if (!sheets.length) {
         skipped.push(`${customer.name} (no readings in ${label})`);
+        await recordHistory({
+          customerId, customerName: customer.name, machineCount: customer.machines.length,
+          rowCount: 0, recipient: null, fileName: null,
+          status: 'Skipped', error: `No sensor readings in ${label}`,
+        });
         continue;
       }
 
@@ -229,10 +273,21 @@ Deno.serve(async (req) => {
       });
 
       if (!resendResp.ok) {
-        errors.push({ customer: customer.name, error: JSON.stringify(await resendResp.json()) });
+        const failure = JSON.stringify(await resendResp.json());
+        errors.push({ customer: customer.name, error: failure });
+        await recordHistory({
+          customerId, customerName: customer.name, machineCount: sheets.length,
+          rowCount: totalRows, recipient, fileName,
+          status: 'Failed', error: failure,
+        });
         continue;
       }
       sent.push(`${customer.name} -> ${recipient}`);
+      await recordHistory({
+        customerId, customerName: customer.name, machineCount: sheets.length,
+        rowCount: totalRows, recipient, fileName,
+        status: 'Sent', error: null,
+      });
     }
 
     return new Response(JSON.stringify({ ok: true, period: label, sent, skipped, errors }), {
