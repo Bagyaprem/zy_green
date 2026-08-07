@@ -14,7 +14,23 @@
 // no ZIP container, no dependency - so it ports here cleanly.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const ADMIN_EMAILS = ['prembagya822@gmail.com'];
+/**
+ * Where the finished workbooks actually go.
+ *
+ * Resend refuses to deliver to anyone but the account owner until a domain
+ * is verified (403 validation_error), so sending straight to each customer
+ * silently fails for every one of them. Until that's sorted, every
+ * customer's workbook is emailed to ADMIN_EMAIL instead — one message per
+ * customer, each subject-tagged with the customer name so they're easy to
+ * tell apart and forward.
+ *
+ * When a domain IS verified in Resend: flip DELIVER_TO_CUSTOMER to true and
+ * change the `from:` address below to that domain. Nothing else changes —
+ * each customer then receives their own workbook directly, with the admin
+ * bcc'd for the archive.
+ */
+const ADMIN_EMAIL = 'prembagya822@gmail.com';
+const DELIVER_TO_CUSTOMER = false;
 
 // Reports are scheduled for 00:00 IST on the 1st. pg_cron runs in UTC, and
 // IST has no DST, so the cron fires daily at 18:30 UTC (= 00:00 IST) and
@@ -143,7 +159,9 @@ Deno.serve(async (req) => {
     const errors: { customer: string; error: string }[] = [];
 
     for (const [, customer] of byCustomer) {
-      if (!customer.email) {
+      // With DELIVER_TO_CUSTOMER off, a missing customer email is fine —
+      // everything is going to the admin address anyway.
+      if (DELIVER_TO_CUSTOMER && !customer.email) {
         skipped.push(`${customer.name} (no email on file)`);
         continue;
       }
@@ -180,19 +198,32 @@ Deno.serve(async (req) => {
       const fileName = `ZYGREEN-${customer.name.replace(/[^a-zA-Z0-9]+/g, '-')}-${label.replace(' ', '-')}.xls`;
 
       const machineList = customer.machines.map((m) => `${m.machine_code} (${m.machine_name})`).join(', ');
+      const deliverDirect = DELIVER_TO_CUSTOMER && Boolean(customer.email);
+      const recipient = deliverDirect ? customer.email! : ADMIN_EMAIL;
+
       const resendResp = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           from: 'ZYGREEN Reports <onboarding@resend.dev>',
-          to: [customer.email],
-          bcc: ADMIN_EMAILS, // admin archive, without exposing those addresses
-          subject: `ZYGREEN monthly air quality report — ${label}`,
-          html: `<p>Hello ${escapeXml(customer.name)},</p>
-            <p>Attached is your air quality data for <strong>${label}</strong> — ${totalRows.toLocaleString()} readings
-            across ${sheets.length} machine${sheets.length === 1 ? '' : 's'}, one sheet per machine.</p>
-            <p>Machines included: ${escapeXml(machineList)}</p>
-            <p>— ZYGREEN</p>`,
+          to: [recipient],
+          // Only bcc the admin when the customer is the actual recipient —
+          // otherwise the admin would get two copies of the same thing.
+          ...(deliverDirect ? { bcc: [ADMIN_EMAIL] } : {}),
+          // Customer name is in the subject either way, so when everything
+          // lands in one admin inbox the messages are still distinguishable.
+          subject: `ZYGREEN monthly report — ${customer.name} — ${label}`,
+          html: deliverDirect
+            ? `<p>Hello ${escapeXml(customer.name)},</p>
+               <p>Attached is your air quality data for <strong>${label}</strong> — ${totalRows.toLocaleString()} readings
+               across ${sheets.length} machine${sheets.length === 1 ? '' : 's'}, one sheet per machine.</p>
+               <p>Machines included: ${escapeXml(machineList)}</p>
+               <p>— ZYGREEN</p>`
+            : `<p>Monthly report for <strong>${escapeXml(customer.name)}</strong> — ${label}.</p>
+               <p>${totalRows.toLocaleString()} readings across ${sheets.length} machine${sheets.length === 1 ? '' : 's'}, one sheet per machine.</p>
+               <p>Machines included: ${escapeXml(machineList)}</p>
+               <p style="color:#666;font-size:12px">Sent to the admin address because Resend has no verified domain yet, so
+               direct delivery to ${escapeXml(customer.email ?? 'the customer')} would be rejected. Forward as needed.</p>`,
           attachments: [{ filename: fileName, content: toBase64(workbook) }],
         }),
       });
@@ -201,7 +232,7 @@ Deno.serve(async (req) => {
         errors.push({ customer: customer.name, error: JSON.stringify(await resendResp.json()) });
         continue;
       }
-      sent.push(`${customer.name} <${customer.email}>`);
+      sent.push(`${customer.name} -> ${recipient}`);
     }
 
     return new Response(JSON.stringify({ ok: true, period: label, sent, skipped, errors }), {
