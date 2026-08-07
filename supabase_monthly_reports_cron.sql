@@ -25,9 +25,22 @@
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
+-- Target: 00:00 IST on the 1st of each month.
+--
+-- pg_cron runs in UTC, and 00:00 IST is 18:30 UTC on the PREVIOUS day —
+-- i.e. the last day of the previous month, which standard cron can't
+-- express (there's no "last day of month" syntax, and it varies 28-31).
+-- So this fires daily at 18:30 UTC (= 00:00 IST every day) and the function
+-- itself checks whether it is actually the 1st in IST, exiting immediately
+-- on the other ~30 days. That in-function guard is also why the month
+-- arithmetic there is done in IST: at 18:30 UTC on 31 Aug it is already
+-- 1 Sep in IST, so "previous month" must resolve to August, not July.
+select cron.unschedule('monthly-machine-reports')
+where exists (select 1 from cron.job where jobname = 'monthly-machine-reports');
+
 select cron.schedule(
   'monthly-machine-reports',
-  '5 0 1 * *',  -- 00:05 UTC on the 1st of every month
+  '30 18 * * *',  -- 18:30 UTC daily = 00:00 IST; the function runs only on the 1st
   $$
   select net.http_post(
     url := 'https://pbnisugqyvvltseahqyi.supabase.co/functions/v1/send-monthly-reports',
