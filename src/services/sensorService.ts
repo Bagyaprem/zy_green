@@ -1,4 +1,5 @@
 import { supabase, assertSupabaseConfigured } from './supabaseClient';
+import { calculateAqi } from '@/constants/aqi';
 import type { SensorReading } from '@/types';
 
 interface SensorRow {
@@ -27,7 +28,9 @@ function mapReading(row: SensorRow): SensorReading {
     pm2_5: row.pm2_5,
     pm4_0: row.pm4_0,
     pm10: row.pm10,
-    aqi: row.aqi,
+    // sensor_data.aqi is never populated by the firmware - compute it from
+    // the PM readings that actually are, rather than always returning null.
+    aqi: row.aqi ?? calculateAqi(row.pm2_5, row.pm10),
   };
 }
 
