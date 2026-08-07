@@ -76,7 +76,10 @@ export function buildMachineColumns({ onEdit, onDelete }: MachineColumnActions):
                 </Button>
               }
               title="Delete machine?"
-              description={`This will permanently remove ${machine.machineName} (${machine.machineCode}) and its historical data. This action cannot be undone.`}
+              // Every satellite table FKs to machines with `on delete cascade`,
+              // so this destroys far more than the row itself - say so plainly
+              // rather than letting "and its historical data" imply just readings.
+              description={`This will permanently delete ${machine.machineName} (${machine.machineCode}) and everything attached to it: all sensor readings, its WiFi configuration, status and firmware records, alerts, logs, and any generated reports. This action cannot be undone.`}
               confirmLabel="Delete"
               onConfirm={() => onDelete(machine)}
             />

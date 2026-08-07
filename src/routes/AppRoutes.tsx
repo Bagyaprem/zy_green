@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import { ProtectedAdminLayout } from '@/layouts/ProtectedAdminLayout';
+import { RequireAdmin } from '@/layouts/RequireAdmin';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { DashboardPage } from '@/pages/dashboard/DashboardPage';
 import { CustomerDashboardPage } from '@/pages/dashboard/CustomerDashboardPage';
@@ -27,17 +28,27 @@ export function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
 
       <Route element={<ProtectedAdminLayout />}>
+        {/* Shared: both roles, each seeing only their own scope. */}
         <Route path="/" element={<DashboardRoute />} />
-        <Route path="/machines" element={<MachinesPage />} />
-        <Route path="/machines/:machineId" element={<MachineDetailsPage />} />
-        <Route path="/customers" element={<CustomersPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+
+        {/* Customer portal pages. Admins may also open these (a superset is
+            harmless); the reverse is not, hence RequireAdmin below. */}
         <Route path="/live-data" element={<LiveDataPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
         <Route path="/downloads" element={<DownloadsPage />} />
-        <Route path="/activity-logs" element={<ActivityLogsPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
         <Route path="/account-settings" element={<AccountSettingsPage />} />
+
+        {/* Admin-only: fleet-wide management with destructive row actions.
+            Hiding these from the sidebar was never enough - the routes
+            themselves have to reject customers. */}
+        <Route element={<RequireAdmin />}>
+          <Route path="/machines" element={<MachinesPage />} />
+          <Route path="/machines/:machineId" element={<MachineDetailsPage />} />
+          <Route path="/customers" element={<CustomersPage />} />
+          <Route path="/activity-logs" element={<ActivityLogsPage />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />
