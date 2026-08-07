@@ -37,7 +37,8 @@ async function sessionToUser(session: Session | null): Promise<AuthenticatedUser
   if (!session?.user) return null;
 
   const email = session.user.email ?? '';
-  const { data: customer } = await supabase.from('customers').select('id, customer_name').eq('email', email).maybeSingle();
+  const { data: customer, error: customerError } = await supabase.from('customers').select('id, customer_name').eq('email', email).maybeSingle();
+  if (customerError) throw new Error(`Couldn't verify your account (${customerError.message}). Please try again.`);
   if (customer) {
     return {
       id: session.user.id,
@@ -48,7 +49,8 @@ async function sessionToUser(session: Session | null): Promise<AuthenticatedUser
     };
   }
 
-  const { data: admin } = await supabase.from('admin_users').select('email').eq('email', email).maybeSingle();
+  const { data: admin, error: adminError } = await supabase.from('admin_users').select('email').eq('email', email).maybeSingle();
+  if (adminError) throw new Error(`Couldn't verify your account (${adminError.message}). Please try again.`);
   if (!admin) {
     await supabase.auth.signOut();
     return null;
