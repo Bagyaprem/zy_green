@@ -20,7 +20,13 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { customerService } from '@/services/customerService';
-import { generateLoginEmail, generateSimplePassword } from '@/utils/credentials';
+import {
+  LOGIN_DOMAIN,
+  buildLoginEmail,
+  generateSimplePassword,
+  sanitizeLoginLocalPart,
+  slugifyLoginName,
+} from '@/utils/credentials';
 import { customerFormSchema, type CustomerFormValues } from './customerSchema';
 import { GeneratedCredentialsDialog, type GeneratedCredentials } from './GeneratedCredentialsDialog';
 
@@ -28,6 +34,11 @@ export function CreateCustomerDialog() {
   const [open, setOpen] = useState(false);
   const [createLogin, setCreateLogin] = useState(false);
   const [pendingPassword, setPendingPassword] = useState('');
+  // Only the part before the @ — the domain is fixed. Prefilled from the
+  // customer's name until the admin types their own, after which their
+  // choice sticks even as the name field keeps changing.
+  const [loginLocalPart, setLoginLocalPart] = useState('');
+  const [localPartEdited, setLocalPartEdited] = useState(false);
   const [revealedCredentials, setRevealedCredentials] = useState<GeneratedCredentials | null>(null);
   const queryClient = useQueryClient();
 
@@ -43,18 +54,41 @@ export function CreateCustomerDialog() {
   // the password is derived from name+phone — keep both in sync as either changes.
   useEffect(() => {
     if (createLogin) {
-      form.setValue('email', generateLoginEmail(customerName || 'customer'));
       setPendingPassword(generateSimplePassword(customerName || 'customer', phone || ''));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createLogin, customerName, phone]);
+
+  // Track the customer's name only until the admin takes over the username.
+  useEffect(() => {
+    if (createLogin && !localPartEdited) {
+      setLoginLocalPart(slugifyLoginName(customerName || 'customer'));
+    }
+  }, [createLogin, customerName, localPartEdited]);
+
+  // The form still carries the full address (that's what gets validated,
+  // submitted, and shown in the credentials dialog) — this recomposes it
+  // from whichever half is editable.
+  useEffect(() => {
+    if (createLogin) {
+      form.setValue('email', buildLoginEmail(loginLocalPart), { shouldValidate: !!loginLocalPart });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createLogin, loginLocalPart]);
+
+  const resetLoginFields = () => {
+    setLoginLocalPart('');
+    setLocalPartEdited(false);
+    setPendingPassword('');
+  };
 
   const handleToggleLogin = (checked: boolean) => {
     setCreateLogin(checked);
     if (checked) {
+      setLocalPartEdited(false);
+      setLoginLocalPart(slugifyLoginName(customerName || 'customer'));
       setPendingPassword(generateSimplePassword(customerName || 'customer', phone || ''));
-      form.setValue('email', generateLoginEmail(customerName || 'customer'));
     } else {
+      resetLoginFields();
       form.setValue('email', '');
     }
   };
@@ -71,6 +105,7 @@ export function CreateCustomerDialog() {
       }
       form.reset();
       setCreateLogin(false);
+      resetLoginFields();
       setOpen(false);
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to create customer'),
@@ -124,7 +159,9 @@ export function CreateCustomerDialog() {
               <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
                 <div>
                   <Label>Create login for this customer</Label>
-                  <p className="text-xs text-muted-foreground">Auto-generates a username, and a password from their name + phone number.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Suggests a username from their name (edit it freely) and a password from their name + phone number.
+                  </p>
                 </div>
                 <Switch checked={createLogin} onCheckedChange={handleToggleLogin} />
               </div>
@@ -135,11 +172,39 @@ export function CreateCustomerDialog() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{createLogin ? 'Login Username (auto-generated)' : 'Email'}</FormLabel>
-                      <FormControl>
-                        <Input type={createLogin ? 'text' : 'email'} readOnly={createLogin} {...field} />
-                      </FormControl>
-                      <FormMessage />
+                      <FormLabel>{createLogin ? 'Login Username' : 'Email'}</FormLabel>
+                      {createLogin ? (
+                        // Split field: the admin owns everything before the @,
+                        // the domain is fixed and rendered as a static suffix.
+                        <>
+                          <div className="flex items-stretch">
+                            <FormControl>
+                              <Input
+                                type="text"
+                                value={loginLocalPart}
+                                onChange={(e) => {
+                                  setLocalPartEdited(true);
+                                  setLoginLocalPart(sanitizeLoginLocalPart(e.target.value));
+                                }}
+                                placeholder="prem.kumar"
+                                autoComplete="off"
+                                className="rounded-r-none"
+                              />
+                            </FormControl>
+                            <span className="inline-flex select-none items-center rounded-r-lg border border-l-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+                              @{LOGIN_DOMAIN}
+                            </span>
+                          </div>
+                          <FormMessage />
+                        </>
+                      ) : (
+                        <>
+                          <FormControl>
+                            <Input type="email" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </>
+                      )}
                     </FormItem>
                   )}
                 />

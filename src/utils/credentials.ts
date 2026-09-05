@@ -1,15 +1,8 @@
-/** Fixed domain for auto-generated customer logins — never a real inbox, just a stable, memorable identifier derived from the customer's name. */
-const LOGIN_DOMAIN = 'customer.zygreen.io';
+/** Fixed domain for customer logins — never a real inbox, just a stable identifier. The admin chooses the part before the @; this half is not editable. */
+export const LOGIN_DOMAIN = 'zygreen.io';
 
-/** Cryptographically random integer in [0, max) — Math.random() isn't suitable for generating credentials (predictable, not a CSPRNG). */
-function secureRandomInt(max: number): number {
-  const buf = new Uint32Array(1);
-  crypto.getRandomValues(buf);
-  return buf[0] % max;
-}
-
-/** Turns "Prem Kumar" into "prem.kumar" — lowercase, alphanumeric segments joined by dots. */
-function slugify(name: string): string {
+/** Turns "Prem Kumar" into "prem.kumar" — lowercase, alphanumeric segments joined by dots. Used to prefill the login username, which the admin can then edit. */
+export function slugifyLoginName(name: string): string {
   return (
     name
       .toLowerCase()
@@ -19,10 +12,18 @@ function slugify(name: string): string {
   );
 }
 
-/** Generates a unique-enough login "username" (as an email, since Supabase Auth requires one) from a customer's name. */
-export function generateLoginEmail(customerName: string): string {
-  const suffix = Array.from({ length: 4 }, () => secureRandomInt(36).toString(36)).join('');
-  return `${slugify(customerName)}.${suffix}@${LOGIN_DOMAIN}`;
+/**
+ * Keeps a hand-typed username to characters that are safe in an email local
+ * part (lowercase alphanumerics plus . _ -), so whatever the admin types
+ * always composes into a valid address.
+ */
+export function sanitizeLoginLocalPart(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9._-]/g, '');
+}
+
+/** Composes the full login address from the editable local part. */
+export function buildLoginEmail(localPart: string): string {
+  return localPart ? `${localPart}@${LOGIN_DOMAIN}` : '';
 }
 
 /**
