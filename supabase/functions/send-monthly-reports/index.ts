@@ -29,8 +29,16 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
  * each customer then receives their own workbook directly, with the admin
  * bcc'd for the archive.
  */
-const ADMIN_EMAIL = 'prembagya822@gmail.com';
-const DELIVER_TO_CUSTOMER = false;
+// Read from function secrets rather than hardcoded, so changing the fallback
+// recipient (or flipping direct delivery on once a Resend domain is verified)
+// is a `supabase secrets set`, not a code change and redeploy:
+//   supabase secrets set REPORT_ADMIN_EMAIL=ops@yourdomain.com
+//   supabase secrets set DELIVER_TO_CUSTOMER=true
+// The literal below stays only as the fallback for an unset secret, so an
+// existing deployment keeps working unchanged.
+const ADMIN_EMAIL = Deno.env.get('REPORT_ADMIN_EMAIL') ?? 'prembagya822@gmail.com';
+const DELIVER_TO_CUSTOMER = (Deno.env.get('DELIVER_TO_CUSTOMER') ?? 'false').toLowerCase() === 'true';
+const MAIL_FROM = Deno.env.get('REPORT_MAIL_FROM') ?? 'ZYGREEN Reports <onboarding@resend.dev>';
 
 // Reports are scheduled for 00:00 IST on the 1st. pg_cron runs in UTC, and
 // IST has no DST, so the cron fires daily at 18:30 UTC (= 00:00 IST) and
@@ -249,7 +257,7 @@ Deno.serve(async (req) => {
         method: 'POST',
         headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from: 'ZYGREEN Reports <onboarding@resend.dev>',
+          from: MAIL_FROM,
           to: [recipient],
           // Only bcc the admin when the customer is the actual recipient —
           // otherwise the admin would get two copies of the same thing.

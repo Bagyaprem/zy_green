@@ -114,7 +114,13 @@ export const authService = {
       return () => {};   // nothing to subscribe to: dev-login mode, or a misconfigured deploy
     }
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      void sessionToUser(session).then(callback);
+      // sessionToUser hits the network (customers/admin_users lookup) and can
+      // reject. Unhandled, that swallowed the event entirely and left the
+      // store showing whoever was signed in before; treat a failed resolve as
+      // "no user" so the app falls back to the login screen instead.
+      void sessionToUser(session)
+        .then(callback)
+        .catch(() => callback(null));
     });
     return () => data.subscription.unsubscribe();
   },

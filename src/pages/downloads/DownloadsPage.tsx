@@ -56,7 +56,7 @@ export function DownloadsPage() {
 
   const downloadMutation = useMutation({
     mutationFn: async () => {
-      const rows = await sensorService.getHistory(machineId, new Date(from).toISOString(), new Date(`${to}T23:59:59`).toISOString());
+      const rows = await sensorService.getAllHistory(machineId, new Date(from).toISOString(), new Date(`${to}T23:59:59`).toISOString());
       if (!rows.length) throw new Error('No sensor data in that date range');
       exportToCsv(`zygreen-sensor-data-${from}-to-${to}`, rows.map((r) => ({
         recorded_at: r.recordedAt,

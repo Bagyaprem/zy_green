@@ -15,7 +15,7 @@ import { MachineSelect } from '@/components/shared/MachineSelect';
 import { customerService } from '@/services/customerService';
 import { machineService } from '@/services/machineService';
 import { wifiService } from '@/services/wifiService';
-import { supabase } from '@/services/supabaseClient';
+import { supabase, createThrowawayAuthClient } from '@/services/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
 import { formatRelativeTime, formatUptime } from '@/utils/format';
 
@@ -45,14 +45,28 @@ export function AccountSettingsPage() {
     }
   }, [customerQuery.data]);
 
+  /**
+   * Email is deliberately NOT updatable here.
+   *
+   * Tenancy is resolved by matching the JWT's email against customers.email
+   * (current_customer_id() in supabase_security_hardening.sql). This form used
+   * to write customers.email immediately and then call auth.updateUser({email}),
+   * but Supabase does not move the JWT's email until the user clicks the
+   * confirmation link. Between those two moments the two no longer matched, so
+   * current_customer_id() returned null and every RLS policy denied the
+   * customer access to their own machines, readings and reports — with no way
+   * back if the confirmation mail was missed. The hardening script calls out
+   * that same window as a former privilege-escalation trap; closing it as a
+   * lockout is the other half.
+   *
+   * Making this properly editable means keying tenancy off auth.uid() instead
+   * of email (a customers.auth_user_id column plus an RLS rewrite), not
+   * sequencing these two writes differently.
+   */
   const profileMutation = useMutation({
     mutationFn: async () => {
       if (!user?.customerId) throw new Error('No account found');
-      await customerService.updateCustomer(user.customerId, { customerName: name, phone, email });
-      if (email !== customerQuery.data?.email) {
-        const { error } = await supabase.auth.updateUser({ email });
-        if (error) throw error;
-      }
+      await customerService.updateCustomer(user.customerId, { customerName: name, phone });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customer', user?.customerId] });
@@ -71,7 +85,11 @@ export function AccountSettingsPage() {
       if (newPassword !== confirmPassword) throw new Error('Passwords do not match');
       if (!user?.email) throw new Error('No account found');
 
-      const { error: verifyError } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword });
+      // Verify on a throwaway client, never the shared one: signing in on
+      // `supabase` mints a brand-new session for the tab and fires an auth
+      // event mid-edit as a side effect of what is only meant to be a check.
+      const verifyClient = createThrowawayAuthClient();
+      const { error: verifyError } = await verifyClient.auth.signInWithPassword({ email: user.email, password: currentPassword });
       if (verifyError) throw new Error('Current password is incorrect');
 
       const { error } = await supabase.auth.updateUser({ password: newPassword });
@@ -156,7 +174,10 @@ export function AccountSettingsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Email</Label>
-                    <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                    <Input type="email" value={email} readOnly disabled />
+                    <p className="text-xs text-muted-foreground">
+                      This is your sign-in address and can't be changed here — contact ZYGREEN support.
+                    </p>
                   </div>
                 </div>
                 <div className="flex justify-end">

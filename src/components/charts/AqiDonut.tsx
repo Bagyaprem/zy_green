@@ -33,7 +33,7 @@ export function AqiDonut({ average, bandCounts, total }: AqiDonutProps) {
           <div key={b.label} className="flex items-center gap-2 text-xs">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: b.color }} />
             <span className="text-muted-foreground">
-              {b.label} ({b.min}-{b.max === Infinity ? '300+' : b.max})
+              {b.label} ({b.max === Infinity ? `${b.min}+` : `${b.min}-${b.max}`})
             </span>
             <span className="ml-auto font-medium text-foreground">{total > 0 ? formatNumber(((bandCounts[b.label] ?? 0) / total) * 100) : 0}%</span>
           </div>

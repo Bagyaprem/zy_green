@@ -37,9 +37,9 @@ export function CustomersPage() {
 
   useEffect(() => {
     const q = searchParams.get('search');
-    if (q) setSearch(q);
+    if (q !== null) setSearch(q);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   const customersQuery = useQuery({
     queryKey: ['customers', debouncedSearch],
@@ -150,7 +150,19 @@ export function CustomersPage() {
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete customer?"
-        description={`This will permanently delete ${deleteTarget?.customerName} AND all of their machines, along with every historical sensor reading those machines ever recorded. This cannot be undone.`}
+        /* machines.customer_id is `on delete set null` (supabase_admin_schema.sql),
+           so the hardware and its readings survive — they just stop belonging to
+           anyone. The old copy promised a cascade that never happens, which is a
+           dangerous thing to be wrong about in either direction. */
+        description={
+          deleteTarget
+            ? `This permanently deletes the customer record for ${deleteTarget.customerName}, and immediately revokes their login's access to their data.` +
+              (deleteTarget.machineCount > 0
+                ? ` Their ${deleteTarget.machineCount} machine${deleteTarget.machineCount === 1 ? '' : 's'} and all recorded sensor history are kept, but become unassigned — reassign them to another customer from Machine Management.`
+                : '') +
+              ' This cannot be undone.'
+            : ''
+        }
         confirmLabel="Delete"
         onConfirm={() => {
           if (deleteTarget) deleteMutation.mutate(deleteTarget.id);

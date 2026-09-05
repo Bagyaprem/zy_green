@@ -20,7 +20,8 @@ export function ProfilePage() {
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (newPassword.length < 6) throw new Error('Password must be at least 6 characters');
+      // Same floor as Account Settings — one policy, not one per screen.
+      if (newPassword.length < 8) throw new Error('Password must be at least 8 characters');
       if (newPassword !== confirmPassword) throw new Error('Passwords do not match');
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
@@ -64,7 +65,7 @@ export function ProfilePage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>New Password</Label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 6 characters" />
+              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 8 characters" />
             </div>
             <div className="space-y-2">
               <Label>Confirm Password</Label>

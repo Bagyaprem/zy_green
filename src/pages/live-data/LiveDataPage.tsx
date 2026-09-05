@@ -19,6 +19,7 @@ import { SENSOR_META, type SensorParameter } from '@/constants/sensorMeta';
 import { statusFor, aqiBandFor } from '@/constants/aqi';
 import { rangeFromKey, type TimeRangeKey } from '@/utils/timeRange';
 import { formatDateTime, formatNumber } from '@/utils/format';
+import { downsample, CHART_DISPLAY_POINTS } from '@/utils/downsample';
 import type { SensorReading } from '@/types';
 
 const TREND_OPTIONS = SENSOR_META.filter((s) => s.key !== 'PM4.0');
@@ -56,15 +57,19 @@ export function LiveDataPage() {
   });
 
   const isCustomRange = range === 'CUSTOM';
+  // ReportsPage already refuses an inverted range; this one used to query it
+  // happily and just render "No readings in this window".
+  const customRangeInvalid =
+    isCustomRange && !!customFrom && !!customTo && new Date(customTo).getTime() <= new Date(customFrom).getTime();
   const trendQuery = useQuery({
     queryKey: ['sensor-trend', activeMachineId, range, customFrom, customTo],
     queryFn: () => {
       const { from, to } = isCustomRange
         ? { from: new Date(customFrom).toISOString(), to: new Date(customTo).toISOString() }
         : rangeFromKey(range as TimeRangeKey);
-      return sensorService.getHistory(activeMachineId, from, to);
+      return sensorService.getAllHistory(activeMachineId, from, to);
     },
-    enabled: !!activeMachineId && (!isCustomRange || (!!customFrom && !!customTo)),
+    enabled: !!activeMachineId && (!isCustomRange || (!!customFrom && !!customTo && !customRangeInvalid)),
     refetchInterval: isCustomRange ? false : 30000,
   });
 
@@ -173,10 +178,12 @@ export function LiveDataPage() {
             <CardSkeleton className="h-72 w-full" />
           ) : isCustomRange && (!customFrom || !customTo) ? (
             <EmptyState title="Pick a date range" description="Choose both a From and To date/time above." />
+          ) : customRangeInvalid ? (
+            <EmptyState title="Check the date range" description={'"To" must be after "From".'} />
           ) : !trendQuery.data?.length ? (
             <EmptyState title="No readings in this window" description="Try a wider time range." />
           ) : (
-            <TrendChart data={trendQuery.data} series={trendSeries} />
+            <TrendChart data={downsample(trendQuery.data, CHART_DISPLAY_POINTS)} series={trendSeries} />
           )}
         </CardContent>
       </Card>

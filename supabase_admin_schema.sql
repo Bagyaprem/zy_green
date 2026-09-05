@@ -61,7 +61,10 @@ create table if not exists public.machines (
   machine_name text not null,
   machine_code text not null unique,
   location text,
-  status text not null default 'Disconnected' check (status in ('Online', 'Offline', 'Maintenance', 'Disconnected')),
+  -- Admin enable/disable flag for the machine, NOT connectivity: live
+  -- online/offline is derived from machine_status.last_seen freshness (see
+  -- src/constants/status.ts). Must match the app's MachineStatus union.
+  status text not null default 'Active' check (status in ('Active', 'Inactive')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -173,6 +176,7 @@ create table if not exists public.report_requests (
   report_type text not null check (report_type in ('PDF', 'CSV', 'Excel')),
   report_from timestamptz not null,
   report_to timestamptz not null,
+  remarks text,
   status text not null default 'Pending' check (status in ('Pending', 'Generating', 'Ready', 'Failed')),
   requested_at timestamptz not null default now()
 );

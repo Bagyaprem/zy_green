@@ -25,11 +25,14 @@ export function MachinesPage() {
   const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
   const queryClient = useQueryClient();
 
+  // Keyed on searchParams, not [] — the topbar can navigate here while this
+  // page is already mounted, and a mount-only effect meant every search after
+  // the first changed the URL and nothing else.
   useEffect(() => {
     const q = searchParams.get('search');
-    if (q) setSearch(q);
+    if (q !== null) setSearch(q);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   const { data: customers = [] } = useQuery({ queryKey: ['customers-lite'], queryFn: () => customerService.getCustomers() });
 

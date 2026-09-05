@@ -30,7 +30,15 @@ export function buildMachineColumns({ onEdit, onDelete }: MachineColumnActions):
       ),
     },
     { accessorKey: 'machineName', header: 'Machine Name' },
-    { accessorKey: 'customerName', header: 'Customer', cell: ({ row }) => row.original.customerName || '-' },
+    {
+      accessorKey: 'customerName',
+      header: 'Customer',
+      // A blank cell here used to be ambiguous. It has one specific meaning:
+      // the machine has no customer_id — either never assigned, or its owner
+      // was deleted (the FK nulls it rather than cascading).
+      cell: ({ row }) =>
+        row.original.customerName || <span className="text-xs italic text-muted-foreground">Unassigned</span>,
+    },
     { accessorKey: 'location', header: 'Location', cell: ({ row }) => row.original.location || '-' },
     {
       accessorKey: 'wifiStatus',

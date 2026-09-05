@@ -7,6 +7,7 @@ import { buildXlsBlob, buildMultiSheetXlsBlob } from '@/utils/xls';
 import { renderSensorChartPng } from '@/utils/chartToImage';
 import { loadImage } from '@/utils/loadImage';
 import { filterByHourlyBand } from '@/utils/hourlyBand';
+import { downsample } from '@/utils/downsample';
 import { SENSOR_META } from '@/constants/sensorMeta';
 import type { CreateReportRequestInput, ReportRequest, ReportFileType, DataSelectionMode } from '@/types';
 import type { SensorReading } from '@/types';
@@ -62,6 +63,21 @@ const PAGE_MARGIN = 14;
 const BRAND_COLOR: [number, number, number] = [14, 47, 36];
 const BORDER_COLOR: [number, number, number] = [226, 232, 240];
 
+/**
+ * Row ceiling for the PDF's raw reading table.
+ *
+ * Reports now fetch every reading in range rather than the first 2000, and a
+ * month at the firmware's ~30s cadence is ~86,000 of them. Typesetting that
+ * many rows through autoTable produces a document nobody can open, let alone
+ * read. So the PDF stays a readable summary and says so on the page, while
+ * CSV and Excel — the formats people actually analyse in — carry everything.
+ * The important part is that omission is now stated, never silent.
+ */
+const PDF_TABLE_ROW_LIMIT = 5000;
+
+/** Points per chart image. Recharts + html2canvas get very slow well before a month of raw readings. */
+const PDF_CHART_POINT_LIMIT = 1500;
+
 function subtitleLine(request: ReportRequest): string {
   const range = `${new Date(request.reportFrom).toLocaleDateString()} - ${new Date(request.reportTo).toLocaleDateString()}`;
   return `${request.machineName ?? 'Unknown machine'} · ${request.customerName ?? '-'} · ${range}`;
@@ -70,7 +86,7 @@ function subtitleLine(request: ReportRequest): string {
 /** Builds a PDF of the machine's sensor readings for the report's date range. */
 async function buildReportPdf(request: ReportRequest): Promise<Blob> {
   if (!request.machineId) throw new Error('Report has no machine assigned');
-  const rows = await sensorService.getHistory(request.machineId, request.reportFrom, request.reportTo);
+  const rows = await sensorService.getAllHistory(request.machineId, request.reportFrom, request.reportTo);
   const logo = await loadImage('/logo.png');
 
   const doc = new jsPDF();
@@ -109,11 +125,25 @@ async function buildReportPdf(request: ReportRequest): Promise<Blob> {
   doc.line(PAGE_MARGIN, tableStartY - 6, pageWidth - PAGE_MARGIN, tableStartY - 6);
 
   if (request.dataSelection === 'All') {
+    // Never silently drop rows: if the range is bigger than the PDF can
+    // sensibly typeset, print what fits and say what was left out.
+    const tableRows = rows.slice(0, PDF_TABLE_ROW_LIMIT);
+    if (rows.length > tableRows.length) {
+      doc.setFontSize(9);
+      doc.setTextColor(140);
+      doc.text(
+        `Showing the first ${tableRows.length.toLocaleString()} of ${rows.length.toLocaleString()} readings. ` +
+          `Export as CSV or Excel for the complete data; the charts below cover the full range.`,
+        PAGE_MARGIN,
+        tableStartY - 1
+      );
+      doc.setTextColor(20);
+    }
     autoTable(doc, {
-      startY: tableStartY,
+      startY: rows.length > tableRows.length ? tableStartY + 4 : tableStartY,
       margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
       head: [['Time', 'CO2 (ppm)', 'PM1.0', 'PM2.5', 'PM4.0', 'PM10', 'Temp (°C)', 'Humidity (%)']],
-      body: rows.map((r) => [
+      body: tableRows.map((r) => [
         new Date(r.recordedAt).toLocaleString(),
         r.co2 ?? '-',
         r.pm1_0 ?? '-',
@@ -196,7 +226,8 @@ async function addSensorChartPages(doc: jsPDF, rows: SensorReading[], request: R
     const points = filterByHourlyBand(rawPoints, mode);
     if (!points.length) continue;
 
-    const png = await renderSensorChartPng(points, meta);
+    // Plot the whole range, thinned to something recharts can rasterize.
+    const png = await renderSensorChartPng(downsample(points, PDF_CHART_POINT_LIMIT), meta);
     if (!png) continue;
 
     doc.addPage();
@@ -268,7 +299,7 @@ function filteredSensorGroups(rows: SensorReading[], mode: DataSelectionMode) {
 /** Builds a CSV of the machine's sensor readings for the report's date range. */
 async function buildReportCsv(request: ReportRequest): Promise<Blob> {
   if (!request.machineId) throw new Error('Report has no machine assigned');
-  const rows = await sensorService.getHistory(request.machineId, request.reportFrom, request.reportTo);
+  const rows = await sensorService.getAllHistory(request.machineId, request.reportFrom, request.reportTo);
 
   if (request.dataSelection === 'All') {
     return new Blob([rowsToCsv(sensorRowsToRecords(rows))], { type: 'text/csv;charset=utf-8;' });
@@ -291,7 +322,7 @@ async function buildReportCsv(request: ReportRequest): Promise<Blob> {
 /** Builds an Excel-openable spreadsheet (SpreadsheetML) of the machine's sensor readings for the report's date range. */
 async function buildReportExcel(request: ReportRequest): Promise<Blob> {
   if (!request.machineId) throw new Error('Report has no machine assigned');
-  const rows = await sensorService.getHistory(request.machineId, request.reportFrom, request.reportTo);
+  const rows = await sensorService.getAllHistory(request.machineId, request.reportFrom, request.reportTo);
 
   if (request.dataSelection === 'All') {
     return buildXlsBlob('Sensor Report', sensorRowsToRecords(rows));

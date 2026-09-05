@@ -20,6 +20,7 @@ import { SENSOR_META, type SensorParameter } from '@/constants/sensorMeta';
 import { aqiBandFor, statusFor } from '@/constants/aqi';
 import { rangeFromKey, type TimeRangeKey } from '@/utils/timeRange';
 import { formatDate, formatDateTime, formatNumber } from '@/utils/format';
+import { downsample, CHART_DISPLAY_POINTS } from '@/utils/downsample';
 import type { SensorReading } from '@/types';
 
 const TREND_OPTIONS = SENSOR_META.filter((s) => s.key !== 'PM4.0');
@@ -61,7 +62,7 @@ export function MachineDetailsPage() {
     queryKey: ['sensor-trend', machineId, range],
     queryFn: () => {
       const { from, to } = rangeFromKey(range);
-      return sensorService.getHistory(machineId as string, from, to);
+      return sensorService.getAllHistory(machineId as string, from, to);
     },
     enabled: !!machineId,
   });
@@ -171,7 +172,7 @@ export function MachineDetailsPage() {
           ) : !trendQuery.data?.length ? (
             <EmptyState title="No readings in this window" description="Try a wider time range." />
           ) : (
-            <TrendChart data={trendQuery.data} series={trendSeries} />
+            <TrendChart data={downsample(trendQuery.data, CHART_DISPLAY_POINTS)} series={trendSeries} />
           )}
         </CardContent>
       </Card>

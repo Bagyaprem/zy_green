@@ -18,6 +18,7 @@ import { sensorService } from '@/services/sensorService';
 import { SENSOR_META, type SensorParameter } from '@/constants/sensorMeta';
 import { aqiBandFor } from '@/constants/aqi';
 import { formatTime } from '@/utils/format';
+import { downsample, CHART_DISPLAY_POINTS } from '@/utils/downsample';
 import { cn } from '@/lib/utils';
 
 function toDateInput(d: Date): string {
@@ -36,11 +37,13 @@ export function AnalyticsPage() {
 
   const historyQuery = useQuery({
     queryKey: ['analytics-history', machineId, from, to],
-    queryFn: () => sensorService.getHistory(machineId, new Date(from).toISOString(), new Date(`${to}T23:59:59`).toISOString()),
+    queryFn: () => sensorService.getAllHistory(machineId, new Date(from).toISOString(), new Date(`${to}T23:59:59`).toISOString()),
     enabled: !!machineId,
   });
 
-  const barData = (historyQuery.data ?? []).map((r) => ({ timestamp: r.recordedAt, value: r[meta.field] ?? 0 }));
+  // AQI stats below are computed over every row; only what gets drawn is thinned.
+  const chartRows = downsample(historyQuery.data ?? [], CHART_DISPLAY_POINTS);
+  const barData = chartRows.map((r) => ({ timestamp: r.recordedAt, value: r[meta.field] ?? 0 }));
   const compareSeries = SENSOR_META.filter((s) => compareKeys.includes(s.key));
 
   const aqiValues = (historyQuery.data ?? []).map((r) => r.aqi).filter((v): v is number => v != null);
@@ -123,7 +126,7 @@ export function AnalyticsPage() {
                 ) : !historyQuery.data?.length ? (
                   <EmptyState title="No data in this range" />
                 ) : chartType === 'line' ? (
-                  <TrendChart data={historyQuery.data} series={[meta]} />
+                  <TrendChart data={chartRows} series={[meta]} />
                 ) : (
                   <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={barData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
@@ -177,7 +180,7 @@ export function AnalyticsPage() {
                 ))}
               </div>
               {historyQuery.data?.length ? (
-                <TrendChart data={historyQuery.data} series={compareSeries} />
+                <TrendChart data={chartRows} series={compareSeries} />
               ) : (
                 <EmptyState title="No data to compare" />
               )}
