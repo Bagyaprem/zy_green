@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,6 +14,10 @@ import { customerService } from '@/services/customerService';
 import { customerFormSchema, type CustomerFormValues } from './customerSchema';
 import type { Customer } from '@/types';
 
+// Email is displayed but never edited or saved here, so it must not be able
+// to fail validation and block a save the admin has no way to fix.
+const editCustomerSchema = customerFormSchema.extend({ email: z.string() });
+
 interface EditCustomerDialogProps {
   customer: Customer | null;
   onOpenChange: (open: boolean) => void;
@@ -22,7 +27,7 @@ export function EditCustomerDialog({ customer, onOpenChange }: EditCustomerDialo
   const queryClient = useQueryClient();
 
   const form = useForm<CustomerFormValues>({
-    resolver: zodResolver(customerFormSchema),
+    resolver: zodResolver(editCustomerSchema),
     defaultValues: { customerName: '', companyName: '', email: '', phone: '', address: '', status: 'Active' },
   });
 
@@ -42,7 +47,9 @@ export function EditCustomerDialog({ customer, onOpenChange }: EditCustomerDialo
   const mutation = useMutation({
     mutationFn: (values: CustomerFormValues) => {
       if (!customer) throw new Error('No customer selected');
-      return customerService.updateCustomer(customer.id, values);
+      // Email is the login identity and is shown read-only — never send it back.
+      const { email: _email, ...editable } = values;
+      return customerService.updateCustomer(customer.id, editable);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
@@ -96,10 +103,11 @@ export function EditCustomerDialog({ customer, onOpenChange }: EditCustomerDialo
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Email / Login</FormLabel>
                     <FormControl>
-                      <Input type="email" {...field} />
+                      <Input type="email" readOnly disabled {...field} />
                     </FormControl>
+                    <p className="text-xs text-muted-foreground">Can't be changed — it's the customer's login.</p>
                     <FormMessage />
                   </FormItem>
                 )}

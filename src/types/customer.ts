@@ -23,4 +23,11 @@ export interface CreateCustomerInput {
   password?: string;
 }
 
-export type UpdateCustomerInput = Partial<CreateCustomerInput>;
+/**
+ * Email is not updatable. It is the customer's login identity AND the key
+ * current_customer_id() matches the JWT against for every RLS policy, but
+ * customers.email is just a copy — writing it leaves auth.users on the old
+ * address, so the customer can no longer sign in or see their own data. See
+ * AccountSettingsPage for the full reasoning.
+ */
+export type UpdateCustomerInput = Partial<Omit<CreateCustomerInput, 'email' | 'password'>>;

@@ -97,7 +97,6 @@ export const customerService = {
     const patch: Record<string, unknown> = {};
     if (input.customerName !== undefined) patch.customer_name = input.customerName;
     if (input.companyName !== undefined) patch.company_name = input.companyName;
-    if (input.email !== undefined) patch.email = input.email;
     if (input.phone !== undefined) patch.phone = input.phone;
     if (input.address !== undefined) patch.address = input.address;
     if (input.status !== undefined) patch.status = input.status;
