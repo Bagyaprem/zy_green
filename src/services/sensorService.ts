@@ -15,6 +15,32 @@ const EXPORT_ROW_CEILING = 100_000;
 /** Upper bound on points handed to a chart — past this, recharts costs a lot and shows nothing extra. */
 const CHART_POINT_CAP = 2000;
 
+/**
+ * Pages fetched at once in getAllHistory.
+ *
+ * Six matches what a browser will open to one host anyway, and is polite
+ * enough not to look like a burst to PostgREST. The pages are independent
+ * reads, so this is purely a latency win: a month's 90 pages go from 90
+ * round-trips end to end down to 15 waves.
+ */
+const PAGE_CONCURRENCY = 6;
+
+/** Runs `task` over every item, keeping at most `limit` in flight, and returns results in input order. */
+async function mapWithConcurrency<T, R>(items: T[], limit: number, task: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+
+  async function worker(): Promise<void> {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await task(items[index]);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
 interface SensorRow {
   id: number;
   machine_id: string;
@@ -45,6 +71,39 @@ function mapReading(row: SensorRow): SensorReading {
     // the PM readings that actually are, rather than always returning null.
     aqi: row.aqi ?? calculateAqi(row.pm2_5, row.pm10),
   };
+}
+
+/** Fetches one page of readings in the canonical (recorded_at, id) order. */
+async function fetchPage(machineId: string, from: string, to: string, offset: number): Promise<SensorRow[]> {
+  const { data, error } = await supabase
+    .from('sensor_data')
+    .select('*')
+    .eq('machine_id', machineId)
+    .gte('recorded_at', from)
+    .lte('recorded_at', to)
+    .order('recorded_at', { ascending: true })
+    .order('id', { ascending: true })
+    .range(offset, offset + PAGE_SIZE - 1);
+  if (error) throw error;
+  return (data ?? []) as SensorRow[];
+}
+
+/**
+ * The original one-page-at-a-time walk, kept as the fallback for when the row
+ * count isn't available up front. Correct but latency-bound - it can only
+ * learn it has reached the end by asking.
+ */
+async function pageSequentially(machineId: string, from: string, to: string): Promise<SensorReading[]> {
+  const rows: SensorRow[] = [];
+
+  for (let offset = 0; offset < EXPORT_ROW_CEILING; offset += PAGE_SIZE) {
+    const page = await fetchPage(machineId, from, to, offset);
+    rows.push(...page);
+    // A short page means the server had nothing more to give.
+    if (page.length < PAGE_SIZE) break;
+  }
+
+  return rows.map(mapReading);
 }
 
 export const sensorService = {
@@ -99,27 +158,37 @@ export const sensorService = {
    */
   async getAllHistory(machineId: string, from: string, to: string): Promise<SensorReading[]> {
     assertSupabaseConfigured();
-    const rows: SensorRow[] = [];
 
-    for (let offset = 0; offset < EXPORT_ROW_CEILING; offset += PAGE_SIZE) {
-      const { data, error } = await supabase
-        .from('sensor_data')
-        .select('*')
-        .eq('machine_id', machineId)
-        .gte('recorded_at', from)
-        .lte('recorded_at', to)
-        .order('recorded_at', { ascending: true })
-        .order('id', { ascending: true })
-        .range(offset, offset + PAGE_SIZE - 1);
-      if (error) throw error;
+    // One cheap head-only count up front, so the pages can be fetched together
+    // rather than discovering where the data ends one round-trip at a time.
+    // Walking pages sequentially made the wall-clock cost of a range purely a
+    // function of its length: a week is 21 pages (~4s of nothing but latency),
+    // a month 90 (~18s), with every request idle waiting on the previous one.
+    const { count, error: countError } = await supabase
+      .from('sensor_data')
+      .select('id', { count: 'exact', head: true })
+      .eq('machine_id', machineId)
+      .gte('recorded_at', from)
+      .lte('recorded_at', to);
+    if (countError) throw countError;
 
-      const page = (data ?? []) as SensorRow[];
-      rows.push(...page);
-      // A short page means the server had nothing more to give.
-      if (page.length < PAGE_SIZE) break;
-    }
+    // No count header came back (it is the one part of this that depends on
+    // PostgREST populating Content-Range). Fall back to walking pages rather
+    // than treating an unknown total as "no data" and silently drawing an
+    // empty chart over a range that has readings in it.
+    if (count == null) return pageSequentially(machineId, from, to);
 
-    return rows.map(mapReading);
+    const total = Math.min(count, EXPORT_ROW_CEILING);
+    if (total === 0) return [];
+
+    const offsets: number[] = [];
+    for (let offset = 0; offset < total; offset += PAGE_SIZE) offsets.push(offset);
+
+    // (recorded_at, id) is a total order, so every page is independent and the
+    // results reassemble deterministically regardless of completion order.
+    const pages = await mapWithConcurrency(offsets, PAGE_CONCURRENCY, (offset) => fetchPage(machineId, from, to, offset));
+
+    return pages.flat().map(mapReading);
   },
 
   /** Same as getHistory but newest first, for tabular display. */

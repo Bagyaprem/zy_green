@@ -75,7 +75,7 @@ const BORDER_COLOR: [number, number, number] = [226, 232, 240];
  */
 const PDF_TABLE_ROW_LIMIT = 5000;
 
-/** Points per chart image. Recharts + html2canvas get very slow well before a month of raw readings. */
+/** Points per chart image. Recharts builds an SVG node per point, so this stays well below a month of raw readings. */
 const PDF_CHART_POINT_LIMIT = 1500;
 
 function subtitleLine(request: ReportRequest): string {
@@ -227,8 +227,16 @@ async function addSensorChartPages(doc: jsPDF, rows: SensorReading[], request: R
     if (!points.length) continue;
 
     // Plot the whole range, thinned to something recharts can rasterize.
-    const png = await renderSensorChartPng(downsample(points, PDF_CHART_POINT_LIMIT), meta);
-    if (!png) continue;
+    // One sensor failing to rasterize must not abort the other seven pages -
+    // or the surrounding try/catch in generateAndAttach, which would mark an
+    // otherwise-complete report Failed over a single missing chart.
+    let png: string | null = null;
+    let renderError: string | null = null;
+    try {
+      png = await renderSensorChartPng(downsample(points, PDF_CHART_POINT_LIMIT), meta);
+    } catch (err) {
+      renderError = err instanceof Error ? err.message : String(err);
+    }
 
     doc.addPage();
     doc.setFontSize(14);
@@ -246,7 +254,26 @@ async function addSensorChartPages(doc: jsPDF, rows: SensorReading[], request: R
     doc.setDrawColor(...BORDER_COLOR);
     doc.setLineWidth(0.3);
     doc.roundedRect(PAGE_MARGIN - cardPadding, cardY - cardPadding, contentWidth + cardPadding * 2, imgHeight + cardPadding * 2, 2, 2, 'S');
-    doc.addImage(png, 'PNG', PAGE_MARGIN, cardY, contentWidth, imgHeight);
+
+    if (png) {
+      doc.addImage(png, 'PNG', PAGE_MARGIN, cardY, contentWidth, imgHeight);
+    } else {
+      // Say the chart is missing rather than printing an empty card. The data
+      // itself is intact and in the table/CSV/Excel - only the picture failed.
+      doc.setFontSize(10);
+      doc.setTextColor(140);
+      doc.text(
+        `Chart could not be rendered for this sensor${renderError ? ` (${renderError})` : ''}.`,
+        PAGE_MARGIN + 4,
+        cardY + imgHeight / 2 - 2
+      );
+      doc.text(
+        `Its ${points.length.toLocaleString()} readings are unaffected - export as CSV or Excel for the values.`,
+        PAGE_MARGIN + 4,
+        cardY + imgHeight / 2 + 4
+      );
+      doc.setTextColor(20);
+    }
   }
 }
 

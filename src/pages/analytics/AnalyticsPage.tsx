@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { BarChart3, LineChart as LineChartIcon } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -17,7 +17,8 @@ import { MachineSelect } from '@/components/shared/MachineSelect';
 import { sensorService } from '@/services/sensorService';
 import { SENSOR_META, type SensorParameter } from '@/constants/sensorMeta';
 import { aqiBandFor } from '@/constants/aqi';
-import { formatTime } from '@/utils/format';
+import { axisTickGap, formatAxisTick, formatDateTime, seriesSpanMs } from '@/utils/format';
+import { dayRangeToIso } from '@/utils/timeRange';
 import { downsample, CHART_DISPLAY_POINTS } from '@/utils/downsample';
 import { cn } from '@/lib/utils';
 
@@ -37,22 +38,66 @@ export function AnalyticsPage() {
 
   const historyQuery = useQuery({
     queryKey: ['analytics-history', machineId, from, to],
-    queryFn: () => sensorService.getAllHistory(machineId, new Date(from).toISOString(), new Date(`${to}T23:59:59`).toISOString()),
+    queryFn: () => {
+      const range = dayRangeToIso(from, to);
+      return sensorService.getAllHistory(machineId, range.from, range.to);
+    },
     enabled: !!machineId,
+    // A date range that has already elapsed doesn't change, so re-paging tens
+    // of thousands of rows to redraw an identical chart is the slowest thing
+    // this page can do. Apply still forces a refetch on demand.
+    staleTime: 5 * 60_000,
+    // Keep the current chart on screen while a new range loads instead of
+    // collapsing to a skeleton - the old data stays truthful until replaced.
+    placeholderData: keepPreviousData,
   });
 
-  // AQI stats below are computed over every row; only what gets drawn is thinned.
-  const chartRows = downsample(historyQuery.data ?? [], CHART_DISPLAY_POINTS);
-  const barData = chartRows.map((r) => ({ timestamp: r.recordedAt, value: r[meta.field] ?? 0 }));
-  const compareSeries = SENSOR_META.filter((s) => compareKeys.includes(s.key));
+  /**
+   * Everything below walks the full result set - tens of thousands of rows for
+   * a multi-day range. Without memos these all re-ran on every render, so
+   * flipping to the bar chart or toggling one Data Comparison pill re-crunched
+   * the entire history several times over before React could paint. They only
+   * actually change when the query data does.
+   */
+  const rows = historyQuery.data;
 
-  const aqiValues = (historyQuery.data ?? []).map((r) => r.aqi).filter((v): v is number => v != null);
-  const aqiBandCounts = aqiValues.reduce<Record<string, number>>((acc, v) => {
-    const band = aqiBandFor(v).label;
-    acc[band] = (acc[band] ?? 0) + 1;
-    return acc;
-  }, {});
-  const aqiAverage = aqiValues.length ? aqiValues.reduce((sum, v) => sum + v, 0) / aqiValues.length : 0;
+  // AQI stats are computed over every row; only what gets drawn is thinned.
+  const chartRows = useMemo(() => downsample(rows ?? [], CHART_DISPLAY_POINTS), [rows]);
+
+  // null means the sensor reported nothing at that timestamp, which is not the
+  // same as reading zero - coercing it drew a bar at the floor and made a gap
+  // in the data look like a genuine 0 µg/m³ measurement. The line chart already
+  // passes null through (TrendChart) so it breaks the line; do the same here.
+  // Cheap by comparison: chartRows is already capped at CHART_DISPLAY_POINTS.
+  const barData = useMemo(
+    () => chartRows.map((r) => ({ timestamp: r.recordedAt, value: r[meta.field] })),
+    [chartRows, meta.field]
+  );
+
+  // Span of the data actually returned, not of the picked dates - if the
+  // machine only reported for part of the range, the axis should label what
+  // is on screen.
+  const spanMs = useMemo(() => seriesSpanMs((rows ?? []).map((r) => r.recordedAt)), [rows]);
+
+  const compareSeries = useMemo(() => SENSOR_META.filter((s) => compareKeys.includes(s.key)), [compareKeys]);
+
+  // One pass for all three AQI figures instead of a map, a filter, a reduce
+  // and another reduce over the same rows.
+  const { aqiCount, aqiBandCounts, aqiAverage } = useMemo(() => {
+    const bandCounts: Record<string, number> = {};
+    let sum = 0;
+    let count = 0;
+
+    for (const r of rows ?? []) {
+      if (r.aqi == null) continue;
+      const band = aqiBandFor(r.aqi).label;
+      bandCounts[band] = (bandCounts[band] ?? 0) + 1;
+      sum += r.aqi;
+      count++;
+    }
+
+    return { aqiCount: count, aqiBandCounts: bandCounts, aqiAverage: count ? sum / count : 0 };
+  }, [rows]);
 
   const toggleCompare = (key: SensorParameter) => {
     setCompareKeys((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
@@ -131,9 +176,9 @@ export function AnalyticsPage() {
                   <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={barData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
-                      <XAxis dataKey="timestamp" tickFormatter={(v) => formatTime(v)} tick={{ fontSize: 11 }} minTickGap={40} />
+                      <XAxis dataKey="timestamp" tickFormatter={(v) => formatAxisTick(v, spanMs)} tick={{ fontSize: 11 }} minTickGap={axisTickGap(spanMs)} />
                       <YAxis tick={{ fontSize: 11 }} width={36} />
-                      <Tooltip labelFormatter={(v) => formatTime(v as string)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                      <Tooltip labelFormatter={(v) => formatDateTime(v as string)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                       <Bar dataKey="value" name={`${meta.label} (${meta.unit})`} fill={meta.color} radius={[3, 3, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -150,10 +195,10 @@ export function AnalyticsPage() {
                   <CardSkeleton className="h-72 w-full" />
                 ) : historyQuery.isError ? (
                   <ErrorState onRetry={() => historyQuery.refetch()} />
-                ) : !aqiValues.length ? (
+                ) : !aqiCount ? (
                   <EmptyState title="No AQI data in this range" />
                 ) : (
-                  <AqiDonut average={aqiAverage} bandCounts={aqiBandCounts} total={aqiValues.length} />
+                  <AqiDonut average={aqiAverage} bandCounts={aqiBandCounts} total={aqiCount} />
                 )}
               </CardContent>
             </Card>

@@ -17,6 +17,7 @@ import { MachineSelect } from '@/components/shared/MachineSelect';
 import { sensorService } from '@/services/sensorService';
 import { reportService } from '@/services/reportService';
 import { exportToCsv } from '@/utils/csv';
+import { dayRangeToIso } from '@/utils/timeRange';
 import { formatDate, formatDateTime } from '@/utils/format';
 
 function toDateInput(d: Date): string {
@@ -56,7 +57,8 @@ export function DownloadsPage() {
 
   const downloadMutation = useMutation({
     mutationFn: async () => {
-      const rows = await sensorService.getAllHistory(machineId, new Date(from).toISOString(), new Date(`${to}T23:59:59`).toISOString());
+      const range = dayRangeToIso(from, to);
+      const rows = await sensorService.getAllHistory(machineId, range.from, range.to);
       if (!rows.length) throw new Error('No sensor data in that date range');
       exportToCsv(`zygreen-sensor-data-${from}-to-${to}`, rows.map((r) => ({
         recorded_at: r.recordedAt,

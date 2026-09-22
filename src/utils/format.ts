@@ -30,6 +30,38 @@ export function formatRelativeTime(value: string | number | Date | null): string
   return `${formatDistanceToNowStrict(d, { addSuffix: true })}`;
 }
 
+const DAY_MS = 86_400_000;
+
+/**
+ * Formats a chart X-axis tick according to how much time the series spans.
+ *
+ * A time-only tick is unambiguous on a one-hour chart and meaningless on a
+ * seven-day one: the axis cycles through the same clock times over and over
+ * with nothing to say which day any of them belongs to. Scale the label to
+ * the range instead, and drop seconds - at any span wide enough to need a
+ * date, seconds are noise.
+ */
+export function formatAxisTick(value: string | number | Date, spanMs: number): string {
+  const d = toDate(value);
+  if (!isValid(d)) return '-';
+  if (spanMs >= 3 * DAY_MS) return format(d, 'dd MMM');
+  if (spanMs >= DAY_MS) return format(d, 'dd MMM, hh:mm a');
+  return format(d, 'hh:mm a');
+}
+
+/** Tick labels get wider once they carry a date, so they need more room between them. */
+export function axisTickGap(spanMs: number): number {
+  return spanMs >= DAY_MS ? 90 : 40;
+}
+
+/** Milliseconds covered by an ascending-by-time series; 0 for anything shorter than two points. */
+export function seriesSpanMs(timestamps: (string | number | Date)[]): number {
+  if (timestamps.length < 2) return 0;
+  const first = toDate(timestamps[0]).getTime();
+  const last = toDate(timestamps[timestamps.length - 1]).getTime();
+  return Number.isFinite(first) && Number.isFinite(last) ? Math.max(last - first, 0) : 0;
+}
+
 export function formatNumber(value: number, fractionDigits = 0): string {
   return Number.isFinite(value)
     ? value.toLocaleString('en-IN', { maximumFractionDigits: fractionDigits, minimumFractionDigits: fractionDigits })

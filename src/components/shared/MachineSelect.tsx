@@ -10,7 +10,11 @@ interface MachineSelectProps {
 
 /** Lets the admin pick a machine by name/code — never exposes a raw machine id in the UI. */
 export function MachineSelect({ value, onChange, className }: MachineSelectProps) {
-  const { data: machines = [] } = useQuery({ queryKey: ['machines-lite'], queryFn: () => machineService.getMachines() });
+  // Same key as every other unfiltered machine list (Live Data, Account
+  // Settings, the customer dashboard). It was 'machines-lite' but fetched
+  // exactly the same rows with the same call, so it only ever bought a second
+  // cache entry and a second network request on any page showing both.
+  const { data: machines = [] } = useQuery({ queryKey: ['machines'], queryFn: () => machineService.getMachines() });
 
   return (
     <Select value={value} onValueChange={onChange}>
