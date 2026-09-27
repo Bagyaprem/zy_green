@@ -115,6 +115,11 @@ export function AccountSettingsPage() {
     queryFn: () => wifiService.getWifi(activeWifiMachineId),
     enabled: !!activeWifiMachineId,
   });
+  // Live state comes from the device heartbeat (see machineService.mapMachine),
+  // not machine_wifi.connection_status, which the firmware never writes.
+  const activeWifiMachine = machinesQuery.data?.find((m) => m.id === activeWifiMachineId);
+  const wifiStatus = activeWifiMachine?.wifiStatus ?? 'Disconnected';
+  const wifiLastSeen = activeWifiMachine?.lastSeen ?? wifiQuery.data?.lastConnectedAt ?? null;
 
   useEffect(() => {
     if (wifiQuery.data) {
@@ -236,11 +241,11 @@ export function AccountSettingsPage() {
               <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0">
                 <div>
                   <CardTitle>WiFi Configuration</CardTitle>
-                  <CardDescription>Last connected {formatRelativeTime(wifiQuery.data?.lastConnectedAt ?? null)}</CardDescription>
+                  <CardDescription>Last connected {formatRelativeTime(wifiLastSeen)}</CardDescription>
                 </div>
-                <Badge variant={WIFI_STATUS_VARIANT[wifiQuery.data?.connectionStatus ?? 'Disconnected']}>
-                  {wifiQuery.data?.connectionStatus === 'Connected' ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-                  {wifiQuery.data?.connectionStatus ?? 'Disconnected'}
+                <Badge variant={WIFI_STATUS_VARIANT[wifiStatus]}>
+                  {wifiStatus === 'Connected' ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+                  {wifiStatus}
                 </Badge>
               </CardHeader>
               <CardContent className="space-y-4">

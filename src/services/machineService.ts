@@ -50,7 +50,16 @@ function mapMachine(row: MachineRow): Machine {
     machineCode: row.machine_code,
     location: row.location ?? '',
     status: row.status,
-    wifiStatus: isRecent(wifiLastConnectedAt) ? (row.machine_wifi?.connection_status ?? null) : 'Disconnected',
+    // The firmware never writes machine_wifi (anon has no policy on it), so
+    // its connection_status/last_connected_at stay at their defaults forever.
+    // The device can only reach Supabase over WiFi, so a fresh heartbeat is
+    // the real proof of a connection; machine_wifi is kept as a fallback in
+    // case a future firmware does report it.
+    wifiStatus: online
+      ? 'Connected'
+      : isRecent(wifiLastConnectedAt)
+        ? (row.machine_wifi?.connection_status ?? null)
+        : 'Disconnected',
     firmwareVersion: row.machine_firmware?.current_version ?? null,
     isOnline: (row.machine_status?.is_online ?? false) && online,
     sensorStatus: online ? (row.machine_status?.sensor_status ?? null) : 'Unknown',
